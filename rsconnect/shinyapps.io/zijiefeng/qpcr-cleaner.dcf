@@ -1,0 +1,10 @@
+name: qpcr-cleaner
+title:
+username: zijiefeng
+account: zijiefeng
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 15054694
+bundleId: 10602484
+url: https://zijiefeng.shinyapps.io/qpcr-cleaner/
+version: 1
