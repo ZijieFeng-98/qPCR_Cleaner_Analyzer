@@ -31,9 +31,9 @@ cat("   source('deploy_qpcr_app.R')\n\n")
 
 cat("Example:\n")
 cat("rsconnect::setAccountInfo(\n")
-cat("  name   = 'zijiefeng',\n")
-cat("  token  = '73D52A6F9E64A708252DDAC86A116A09',\n")
-cat("  secret = 'ICyttOI6F9bPdLpS3iaOp208zJADDN9H7J+yS19F'\n")
+cat("  name   = 'your-username',\n")
+cat("  token  = 'your-token',\n")
+cat("  secret = 'your-secret'\n")
 cat(")\n\n")
 
 cat("⚠️  Note: Keep your token and secret secure and don't share them publicly!\n")

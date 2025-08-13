@@ -76,12 +76,13 @@ deploy_to_shinyapps <- function() {
       cat("2. Create an account and get your token\n")
       cat("3. Run: rsconnect::setAccountInfo(name='yourname', token='yourtoken', secret='yoursecret')\n")
       
-      # Uncomment and modify the lines below with your actual credentials
-      # rsconnect::setAccountInfo(
-      #   name   = 'your-username',
-      #   token  = 'your-token',
-      #   secret = 'your-secret'
-      # )
+      # Configure ShinyApps.io credentials
+      # For security, use environment variables or .Rprofile
+      cat("Please configure your ShinyApps.io credentials:\n")
+      cat("1. Create a .Rprofile file in your home directory\n")
+      cat("2. Add your credentials there:\n")
+      cat("   rsconnect::setAccountInfo(name='your-username', token='your-token', secret='your-secret')\n")
+      cat("3. Or set environment variables: SHINYAPPS_NAME, SHINYAPPS_TOKEN, SHINYAPPS_SECRET\n")
       
       return(FALSE)
     }
@@ -95,7 +96,7 @@ deploy_to_shinyapps <- function() {
     )
     
     cat("✓ Deployment successful!\n")
-    cat("Your app is available at: https://your-username.shinyapps.io/", APP_NAME, "\n", sep = "")
+    cat("Your app is available at: https://zijiefeng.shinyapps.io/", APP_NAME, "\n", sep = "")
     return(TRUE)
     
   }, error = function(e) {
