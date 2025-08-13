@@ -67,29 +67,38 @@ devtools::install_github("ZijieFeng-98/qPCR_Cleaner_Analyzer")
 qPCR_Cleaner_Analyzer::run_app()
 ```
 
-### Option 2: Clone Repository
+### Option 2: Run Directly
+```r
+# Clone and run directly
+git clone https://github.com/ZijieFeng-98/qPCR_Cleaner_Analyzer.git
+cd qPCR_Cleaner_Analyzer
+source("scripts/install_packages.R")
+shiny::runApp()
+```
+
+### Option 3: Clone Repository
 ```bash
 # Clone the repository
 git clone https://github.com/ZijieFeng-98/qPCR_Cleaner_Analyzer.git
 cd qPCR_Cleaner_Analyzer
 
 # Install packages and run
-Rscript install_packages.R
+Rscript scripts/install_packages.R
 Rscript -e "shiny::runApp()"
 ```
 
-### Option 3: Direct Download
+### Option 4: Direct Download
 1. Download the repository as ZIP
 2. Extract to your desired location
 3. Open R/RStudio in the extracted folder
 4. Run the installation script:
    ```r
-   source("install_packages.R")
+   source("scripts/install_packages.R")
    shiny::runApp()
    ```
 
-### Option 4: Windows One-Click
-- Double-click `run_app.bat` (Windows only)
+### Option 5: Windows One-Click
+- Double-click `scripts/run_app.bat` (Windows only)
 - The script will automatically install packages and start the app
 
 ## 📊 Data Format Requirements
@@ -211,7 +220,7 @@ install.packages("rsconnect")
 rsconnect::setAccountInfo(name='yourname', token='yourtoken', secret='yoursecret')
 
 # Deploy
-source("deploy_qpcr_app.R")
+source("scripts/deploy_qpcr_app.R")
 ```
 
 ### GitHub Actions (Automatic)

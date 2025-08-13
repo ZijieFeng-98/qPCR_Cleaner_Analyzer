@@ -91,8 +91,7 @@ deploy_to_shinyapps <- function() {
     rsconnect::deployApp(
       appDir = APP_PATH,
       appName = APP_NAME,
-      appTitle = "qPCR Cleaner and Analyzer",
-      appDescription = "A comprehensive tool for processing and analyzing qPCR data with advanced statistical methods and interactive visualizations."
+      appTitle = "qPCR Cleaner and Analyzer"
     )
     
     cat("✓ Deployment successful!\n")
