@@ -352,7 +352,7 @@ table.dataTable tbody tr.selected td {
   background: var(--bg-card);
   border: 2px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 1.25rem;
+  padding: 1.5rem;
   margin-bottom: 1.5rem;
   overflow-x: auto;
 }
@@ -369,64 +369,208 @@ table.dataTable tbody tr.selected td {
 
 .plate-grid {
   display: grid;
-  grid-template-columns: 40px repeat(12, 1fr);
-  gap: 4px;
-  min-width: 600px;
+  grid-template-columns: 30px repeat(12, 50px);
+  gap: 3px;
+  justify-content: center;
+  user-select: none;
 }
 
 .plate-header {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
   text-align: center;
   padding: 0.25rem;
+  background: var(--bg-light);
+  border-radius: 4px;
 }
 
 .plate-row-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--bg-light);
+  border-radius: 4px;
 }
 
 .plate-well {
-  aspect-ratio: 1;
-  min-width: 36px;
-  min-height: 36px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
-  border: 2px solid var(--border-color);
-  background: var(--bg-light);
+  border: 2px solid #cbd5e1;
+  background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.12s ease;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 600;
   color: var(--text-muted);
   position: relative;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+}
+
+.plate-well .well-id {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.plate-well .well-value {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 1px;
 }
 
 .plate-well:hover {
   border-color: var(--primary-color);
-  transform: scale(1.1);
+  transform: scale(1.08);
   z-index: 10;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .plate-well.selected {
-  border-color: var(--primary-color);
-  border-width: 3px;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+  border: 4px solid var(--primary-color) !important;
+  background: linear-gradient(145deg, #e0e7ff 0%, #c7d2fe 100%) !important;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.4), inset 0 2px 4px rgba(102, 126, 234, 0.2) !important;
+  transform: scale(1.05);
+}
+
+.plate-well.selected .well-id,
+.plate-well.selected .well-value {
+  color: var(--primary-color) !important;
+  font-weight: 800;
 }
 
 .plate-well.has-data {
-  background: #e0e7ff;
-  border-color: #667eea;
+  background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%);
+  border-color: #60a5fa;
 }
 
 .plate-well.has-cellline {
+  background: linear-gradient(145deg, #e0e7ff 0%, #c7d2fe 100%);
+  border-color: #818cf8;
+}
+
+.plate-well.has-cellline .well-value { color: #4f46e5; }
+
+.plate-well.has-condition {
+  background: linear-gradient(145deg, #d1fae5 0%, #a7f3d0 100%);
+  border-color: #34d399;
+}
+
+.plate-well.has-condition .well-value { color: #059669; }
+
+.plate-well.has-treatment {
+  background: linear-gradient(145deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #fbbf24;
+}
+
+.plate-well.has-treatment .well-value { color: #d97706; }
+
+.plate-well.is-control {
+  background: linear-gradient(145deg, #fee2e2 0%, #fecaca 100%);
+  border-color: #f87171;
+}
+
+.plate-well.is-control .well-value { color: #dc2626; }
+
+.plate-well.empty {
+  background: linear-gradient(145deg, #f1f5f9 0%, #e2e8f0 100%);
+  border: 2px dashed #cbd5e1;
+  opacity: 0.4;
+  cursor: default;
+}
+
+.plate-well.empty:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.plate-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid;
+}
+
+.legend-dot.cellline { background: linear-gradient(145deg, #e0e7ff, #c7d2fe); border-color: #818cf8; }
+.legend-dot.condition { background: linear-gradient(145deg, #d1fae5, #a7f3d0); border-color: #34d399; }
+.legend-dot.treatment { background: linear-gradient(145deg, #fef3c7, #fde68a); border-color: #fbbf24; }
+.legend-dot.control { background: linear-gradient(145deg, #fee2e2, #fecaca); border-color: #f87171; }
+.legend-dot.selected {
+  background: linear-gradient(145deg, #e0e7ff, #c7d2fe);
+  border: 3px solid #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.4);
+}
+
+/* Row/Column Select Buttons */
+.plate-select-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-light);
+  border-radius: var(--radius-md);
+}
+
+.btn-plate-select {
+  background: white;
+  border: 2px solid var(--border-color);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-plate-select:hover {
+  border-color: var(--primary-color);
+  background: rgba(102, 126, 234, 0.1);
+  color: var(--primary-color);
+}
+
+.btn-plate-select:active {
+  transform: scale(0.95);
+}
+
+/* Selection hint */
+.plate-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(102, 126, 234, 0.08);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--primary-color);
+}
   background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
 }
 
@@ -1159,6 +1303,7 @@ server <- function(input, output, session) {
    raw_data = NULL,
    sample_metadata = NULL,
    selected_rows = c(),
+   last_clicked_well = NULL,
    cleaned_data = NULL,
    dct_data = NULL,
    expr_data = NULL,
@@ -1292,6 +1437,13 @@ server <- function(input, output, session) {
    row_labels <- LETTERS[1:8]
    col_labels <- 1:12
 
+   # Calculate mean Ct for each sample (first gene as reference)
+   reps <- as.numeric(input$reps)
+   mean_cts <- sapply(1:n_samples, function(i) {
+     vals <- as.numeric(rv$raw_data[i, 1:reps])
+     if (all(is.na(vals))) NA else round(mean(vals, na.rm = TRUE), 1)
+   })
+
    # Create plate grid
    plate_elements <- list()
 
@@ -1310,6 +1462,9 @@ server <- function(input, output, session) {
      # Wells in this row
      for (col in 1:12) {
        if (well_index <= n_samples) {
+         # Well position name (A1, A2, etc.)
+         well_name <- paste0(row_labels[row_idx], col)
+
          # Determine well class based on metadata
          well_classes <- "plate-well"
 
@@ -1332,13 +1487,16 @@ server <- function(input, output, session) {
            }
          }
 
-         # Create well with click handler
-         well_id <- paste0("well_", well_index)
+         # Get mean Ct value for display
+         ct_val <- mean_cts[well_index]
+         ct_display <- if (is.na(ct_val)) "-" else ct_val
+
+         # Create well with click handler (shift+click for range)
          plate_elements[[length(plate_elements) + 1]] <- tags$div(
-           id = well_id,
            class = well_classes,
-           onclick = sprintf("Shiny.setInputValue('plate_well_click', {well: %d, time: Date.now()})", well_index),
-           well_index
+           onclick = sprintf("Shiny.setInputValue('plate_well_click', {well: %d, shiftKey: event.shiftKey, ctrlKey: event.ctrlKey || event.metaKey, time: Date.now()})", well_index),
+           div(class = "well-id", well_name),
+           div(class = "well-value", ct_display)
          )
        } else {
          # Empty well (beyond sample count)
@@ -1348,21 +1506,56 @@ server <- function(input, output, session) {
      }
    }
 
-   div(class = "plate-grid", plate_elements)
+   tagList(
+     div(class = "plate-grid", plate_elements),
+     div(class = "plate-hint",
+       HTML("<strong>Tip:</strong> Click to select/deselect. Shift+click for range. Ctrl/Cmd+click to add to selection.")
+     )
+   )
  })
 
- # Handle well clicks
+ # Handle well clicks with shift/ctrl support
  observeEvent(input$plate_well_click, {
    req(input$plate_well_click)
    well <- input$plate_well_click$well
+   shift_key <- isTRUE(input$plate_well_click$shiftKey)
+   ctrl_key <- isTRUE(input$plate_well_click$ctrlKey)
 
-   if (well %in% rv$selected_rows) {
-     # Deselect
-     rv$selected_rows <- rv$selected_rows[rv$selected_rows != well]
+   n_samples <- nrow(rv$raw_data)
+
+   if (shift_key && !is.null(rv$last_clicked_well)) {
+     # Shift+click: select range from last clicked to current
+     start_well <- min(rv$last_clicked_well, well)
+     end_well <- max(rv$last_clicked_well, well)
+     range_wells <- start_well:end_well
+     range_wells <- range_wells[range_wells <= n_samples]
+
+     if (ctrl_key) {
+       # Shift+Ctrl: add range to existing selection
+       rv$selected_rows <- unique(c(rv$selected_rows, range_wells))
+     } else {
+       # Shift only: replace selection with range
+       rv$selected_rows <- range_wells
+     }
+   } else if (ctrl_key) {
+     # Ctrl+click: toggle single well in selection
+     if (well %in% rv$selected_rows) {
+       rv$selected_rows <- rv$selected_rows[rv$selected_rows != well]
+     } else {
+       rv$selected_rows <- c(rv$selected_rows, well)
+     }
    } else {
-     # Select (add to selection)
-     rv$selected_rows <- c(rv$selected_rows, well)
+     # Normal click: select only this well (replaces selection)
+     if (well %in% rv$selected_rows && length(rv$selected_rows) == 1) {
+       # Clicking the only selected well deselects it
+       rv$selected_rows <- c()
+     } else {
+       rv$selected_rows <- well
+     }
    }
+
+   # Update last clicked
+   rv$last_clicked_well <- well
 
    # Update DT selection to match
    proxy <- dataTableProxy("sample_table")
