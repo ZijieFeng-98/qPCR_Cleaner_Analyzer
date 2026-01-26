@@ -347,6 +347,162 @@ table.dataTable tbody tr.selected td {
 .chip-treatment { background: #fef3c7; color: #92400e; }
 .chip-control { background: #fee2e2; color: #991b1b; }
 
+/* ==================== 96-WELL PLATE STYLES ==================== */
+.plate-container {
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.plate-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.plate-grid {
+  display: grid;
+  grid-template-columns: 40px repeat(12, 1fr);
+  gap: 4px;
+  min-width: 600px;
+}
+
+.plate-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 0.25rem;
+}
+
+.plate-row-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.plate-well {
+  aspect-ratio: 1;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  background: var(--bg-light);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  position: relative;
+}
+
+.plate-well:hover {
+  border-color: var(--primary-color);
+  transform: scale(1.1);
+  z-index: 10;
+}
+
+.plate-well.selected {
+  border-color: var(--primary-color);
+  border-width: 3px;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+}
+
+.plate-well.has-data {
+  background: #e0e7ff;
+  border-color: #667eea;
+}
+
+.plate-well.has-cellline {
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+}
+
+.plate-well.has-condition {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+}
+
+.plate-well.has-treatment {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.plate-well.is-control {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-color: var(--danger-color);
+}
+
+.plate-well.empty {
+  background: var(--bg-light);
+  border-style: dashed;
+  opacity: 0.5;
+}
+
+.plate-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid;
+}
+
+.legend-dot.cellline { background: #e0e7ff; border-color: #667eea; }
+.legend-dot.condition { background: #d1fae5; border-color: #10b981; }
+.legend-dot.treatment { background: #fef3c7; border-color: #f59e0b; }
+.legend-dot.control { background: #fee2e2; border-color: #ef4444; }
+.legend-dot.selected { background: white; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3); }
+
+/* Row/Column Select Buttons */
+.plate-select-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.btn-plate-select {
+  background: var(--bg-light);
+  border: 1px solid var(--border-color);
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-plate-select:hover {
+  border-color: var(--primary-color);
+  background: rgba(102, 126, 234, 0.1);
+}
+
 /* ==================== BUTTON STYLES ==================== */
 .btn-modern {
  border: none;
@@ -712,9 +868,59 @@ ui <- fluidPage(
                    HTML("&#128161;"),
                    div(
                      tags$strong("How to use:"), tags$br(),
-                     "1. Select rows in the table below (click to select, Ctrl+click for multiple)", tags$br(),
-                     "2. Enter Cell Line, Condition, or Treatment in the fields above", tags$br(),
+                     "1. Click wells on the plate OR select rows in the table below", tags$br(),
+                     "2. Enter Cell Line, Condition, or Treatment", tags$br(),
                      "3. Click 'Apply' to assign to selected samples"
+                   )
+                 ),
+
+                 # 96-Well Plate Visualization
+                 div(class = "plate-container",
+                   div(class = "plate-title", HTML("&#127981;"), "96-Well Plate View"),
+
+                   # Plate selection buttons
+                   div(class = "plate-select-buttons",
+                     actionButton("plate_select_all", "All Wells", class = "btn-plate-select"),
+                     actionButton("plate_select_none", "Clear", class = "btn-plate-select"),
+                     tags$span("|", style = "color: var(--border-color); padding: 0 0.5rem;"),
+                     actionButton("plate_row_A", "Row A", class = "btn-plate-select"),
+                     actionButton("plate_row_B", "Row B", class = "btn-plate-select"),
+                     actionButton("plate_row_C", "Row C", class = "btn-plate-select"),
+                     actionButton("plate_row_D", "Row D", class = "btn-plate-select"),
+                     actionButton("plate_row_E", "Row E", class = "btn-plate-select"),
+                     actionButton("plate_row_F", "Row F", class = "btn-plate-select"),
+                     actionButton("plate_row_G", "Row G", class = "btn-plate-select"),
+                     actionButton("plate_row_H", "Row H", class = "btn-plate-select"),
+                     tags$span("|", style = "color: var(--border-color); padding: 0 0.5rem;"),
+                     actionButton("plate_col_1_6", "Col 1-6", class = "btn-plate-select"),
+                     actionButton("plate_col_7_12", "Col 7-12", class = "btn-plate-select")
+                   ),
+
+                   # The plate grid (generated dynamically)
+                   uiOutput("plate_ui"),
+
+                   # Legend
+                   div(class = "plate-legend",
+                     div(class = "legend-item",
+                       div(class = "legend-dot selected"),
+                       span("Selected")
+                     ),
+                     div(class = "legend-item",
+                       div(class = "legend-dot cellline"),
+                       span("Cell Line")
+                     ),
+                     div(class = "legend-item",
+                       div(class = "legend-dot condition"),
+                       span("Condition")
+                     ),
+                     div(class = "legend-item",
+                       div(class = "legend-dot treatment"),
+                       span("Treatment")
+                     ),
+                     div(class = "legend-item",
+                       div(class = "legend-dot control"),
+                       span("Control")
+                     )
                    )
                  ),
 
@@ -1062,7 +1268,7 @@ server <- function(input, output, session) {
    if (n_selected == 0) {
      div(class = "alert-modern alert-warning-modern", style = "margin-bottom: 1rem; padding: 0.75rem;",
        HTML("&#9888;"),
-       div(tags$strong("No samples selected. "), "Click rows in the table below to select samples.")
+       div(tags$strong("No samples selected. "), "Click wells on the plate or rows in the table.")
      )
    } else {
      div(class = "selection-info",
@@ -1071,6 +1277,232 @@ server <- function(input, output, session) {
        paste("sample(s) selected:", paste(rv$selected_rows, collapse = ", "))
      )
    }
+ })
+
+ # ==================== 96-WELL PLATE ====================
+
+ # Render the plate UI
+ output$plate_ui <- renderUI({
+   req(rv$raw_data)
+
+   n_samples <- nrow(rv$raw_data)
+   max_wells <- 96  # 8 rows x 12 columns
+
+   # Row labels
+   row_labels <- LETTERS[1:8]
+   col_labels <- 1:12
+
+   # Create plate grid
+   plate_elements <- list()
+
+   # Add header row with column numbers
+   plate_elements[[1]] <- div(class = "plate-header", "")  # Empty corner
+   for (col in col_labels) {
+     plate_elements[[length(plate_elements) + 1]] <- div(class = "plate-header", col)
+   }
+
+   # Add rows with wells
+   well_index <- 1
+   for (row_idx in 1:8) {
+     # Row label
+     plate_elements[[length(plate_elements) + 1]] <- div(class = "plate-row-label", row_labels[row_idx])
+
+     # Wells in this row
+     for (col in 1:12) {
+       if (well_index <= n_samples) {
+         # Determine well class based on metadata
+         well_classes <- "plate-well"
+
+         if (well_index %in% rv$selected_rows) {
+           well_classes <- paste(well_classes, "selected")
+         }
+
+         if (!is.null(rv$sample_metadata)) {
+           meta <- rv$sample_metadata[well_index, ]
+           if (meta$Is_Control) {
+             well_classes <- paste(well_classes, "is-control")
+           } else if (meta$Cell_Line != "") {
+             well_classes <- paste(well_classes, "has-cellline")
+           } else if (meta$Condition != "") {
+             well_classes <- paste(well_classes, "has-condition")
+           } else if (meta$Treatment != "") {
+             well_classes <- paste(well_classes, "has-treatment")
+           } else {
+             well_classes <- paste(well_classes, "has-data")
+           }
+         }
+
+         # Create well with click handler
+         well_id <- paste0("well_", well_index)
+         plate_elements[[length(plate_elements) + 1]] <- tags$div(
+           id = well_id,
+           class = well_classes,
+           onclick = sprintf("Shiny.setInputValue('plate_well_click', {well: %d, time: Date.now()})", well_index),
+           well_index
+         )
+       } else {
+         # Empty well (beyond sample count)
+         plate_elements[[length(plate_elements) + 1]] <- div(class = "plate-well empty", "")
+       }
+       well_index <- well_index + 1
+     }
+   }
+
+   div(class = "plate-grid", plate_elements)
+ })
+
+ # Handle well clicks
+ observeEvent(input$plate_well_click, {
+   req(input$plate_well_click)
+   well <- input$plate_well_click$well
+
+   if (well %in% rv$selected_rows) {
+     # Deselect
+     rv$selected_rows <- rv$selected_rows[rv$selected_rows != well]
+   } else {
+     # Select (add to selection)
+     rv$selected_rows <- c(rv$selected_rows, well)
+   }
+
+   # Update DT selection to match
+   proxy <- dataTableProxy("sample_table")
+   selectRows(proxy, rv$selected_rows)
+ })
+
+ # Plate row selection buttons
+ observeEvent(input$plate_row_A, {
+   req(rv$raw_data)
+   wells <- 1:min(12, nrow(rv$raw_data))
+   rv$selected_rows <- wells
+   proxy <- dataTableProxy("sample_table")
+   selectRows(proxy, rv$selected_rows)
+ })
+
+ observeEvent(input$plate_row_B, {
+   req(rv$raw_data)
+   wells <- 13:min(24, nrow(rv$raw_data))
+   wells <- wells[wells <= nrow(rv$raw_data)]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_row_C, {
+   req(rv$raw_data)
+   wells <- 25:min(36, nrow(rv$raw_data))
+   wells <- wells[wells <= nrow(rv$raw_data)]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_row_D, {
+   req(rv$raw_data)
+   wells <- 37:min(48, nrow(rv$raw_data))
+   wells <- wells[wells <= nrow(rv$raw_data)]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_row_E, {
+   req(rv$raw_data)
+   wells <- 49:min(60, nrow(rv$raw_data))
+   wells <- wells[wells <= nrow(rv$raw_data)]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_row_F, {
+   req(rv$raw_data)
+   wells <- 61:min(72, nrow(rv$raw_data))
+   wells <- wells[wells <= nrow(rv$raw_data)]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_row_G, {
+   req(rv$raw_data)
+   wells <- 73:min(84, nrow(rv$raw_data))
+   wells <- wells[wells <= nrow(rv$raw_data)]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_row_H, {
+   req(rv$raw_data)
+   wells <- 85:min(96, nrow(rv$raw_data))
+   wells <- wells[wells <= nrow(rv$raw_data)]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ # Column selection buttons
+ observeEvent(input$plate_col_1_6, {
+   req(rv$raw_data)
+   n <- nrow(rv$raw_data)
+   # Wells in columns 1-6 (positions 1-6, 13-18, 25-30, etc.)
+   wells <- c()
+   for (row in 0:7) {
+     start <- row * 12 + 1
+     end <- row * 12 + 6
+     wells <- c(wells, start:end)
+   }
+   wells <- wells[wells <= n]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_col_7_12, {
+   req(rv$raw_data)
+   n <- nrow(rv$raw_data)
+   # Wells in columns 7-12 (positions 7-12, 19-24, 31-36, etc.)
+   wells <- c()
+   for (row in 0:7) {
+     start <- row * 12 + 7
+     end <- row * 12 + 12
+     wells <- c(wells, start:end)
+   }
+   wells <- wells[wells <= n]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_select_all, {
+   req(rv$raw_data)
+   rv$selected_rows <- 1:nrow(rv$raw_data)
+   proxy <- dataTableProxy("sample_table")
+   selectRows(proxy, rv$selected_rows)
+ })
+
+ observeEvent(input$plate_select_none, {
+   rv$selected_rows <- c()
+   proxy <- dataTableProxy("sample_table")
+   selectRows(proxy, NULL)
  })
 
  # ==================== BATCH APPLY FUNCTIONS ====================
