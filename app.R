@@ -405,29 +405,16 @@ table.dataTable tbody tr.selected td {
   cursor: pointer;
   transition: all 0.12s ease;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
   position: relative;
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
 }
 
-.plate-well .well-id {
-  font-size: 0.55rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  opacity: 0.7;
-}
-
-.plate-well .well-value {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-top: 1px;
-}
+/* Ct value displayed directly in well */
 
 .plate-well:hover {
   border-color: var(--primary-color);
@@ -443,8 +430,7 @@ table.dataTable tbody tr.selected td {
   transform: scale(1.05);
 }
 
-.plate-well.selected .well-id,
-.plate-well.selected .well-value {
+.plate-well.selected {
   color: var(--primary-color) !important;
   font-weight: 800;
 }
@@ -457,30 +443,26 @@ table.dataTable tbody tr.selected td {
 .plate-well.has-cellline {
   background: linear-gradient(145deg, #e0e7ff 0%, #c7d2fe 100%);
   border-color: #818cf8;
+  color: #4f46e5;
 }
-
-.plate-well.has-cellline .well-value { color: #4f46e5; }
 
 .plate-well.has-condition {
   background: linear-gradient(145deg, #d1fae5 0%, #a7f3d0 100%);
   border-color: #34d399;
+  color: #059669;
 }
-
-.plate-well.has-condition .well-value { color: #059669; }
 
 .plate-well.has-treatment {
   background: linear-gradient(145deg, #fef3c7 0%, #fde68a 100%);
   border-color: #fbbf24;
+  color: #d97706;
 }
-
-.plate-well.has-treatment .well-value { color: #d97706; }
 
 .plate-well.is-control {
   background: linear-gradient(145deg, #fee2e2 0%, #fecaca 100%);
   border-color: #f87171;
+  color: #dc2626;
 }
-
-.plate-well.is-control .well-value { color: #dc2626; }
 
 .plate-well.empty {
   background: linear-gradient(145deg, #f1f5f9 0%, #e2e8f0 100%);
@@ -836,7 +818,86 @@ ui <- fluidPage(
  useShinyjs(),
  tags$head(
    tags$style(HTML(modern_css)),
-   tags$link(href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap", rel = "stylesheet")
+   tags$link(href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap", rel = "stylesheet"),
+   tags$script(HTML("
+     // Drag-to-select functionality for 96-well plate
+     $(document).ready(function() {
+       var isDragging = false;
+       var startX, startY;
+       var selectionRect = null;
+       var plateWrapper = null;
+
+       $(document).on('mousedown', '.plate-grid', function(e) {
+         if (e.target.classList.contains('plate-well') || e.target.closest('.plate-well')) {
+           return; // Let individual well clicks work normally
+         }
+         e.preventDefault();
+         isDragging = true;
+         plateWrapper = document.getElementById('plate-wrapper');
+         selectionRect = document.getElementById('selection-rect');
+         var rect = plateWrapper.getBoundingClientRect();
+         startX = e.clientX - rect.left;
+         startY = e.clientY - rect.top;
+         selectionRect.style.left = startX + 'px';
+         selectionRect.style.top = startY + 'px';
+         selectionRect.style.width = '0px';
+         selectionRect.style.height = '0px';
+         selectionRect.style.display = 'block';
+       });
+
+       $(document).on('mousemove', function(e) {
+         if (!isDragging || !plateWrapper) return;
+         var rect = plateWrapper.getBoundingClientRect();
+         var currentX = e.clientX - rect.left;
+         var currentY = e.clientY - rect.top;
+
+         var x = Math.min(startX, currentX);
+         var y = Math.min(startY, currentY);
+         var width = Math.abs(currentX - startX);
+         var height = Math.abs(currentY - startY);
+
+         selectionRect.style.left = x + 'px';
+         selectionRect.style.top = y + 'px';
+         selectionRect.style.width = width + 'px';
+         selectionRect.style.height = height + 'px';
+       });
+
+       $(document).on('mouseup', function(e) {
+         if (!isDragging) return;
+         isDragging = false;
+
+         if (!selectionRect || !plateWrapper) return;
+
+         var selRect = selectionRect.getBoundingClientRect();
+         selectionRect.style.display = 'none';
+
+         // Find wells within selection rectangle
+         var wells = plateWrapper.querySelectorAll('.plate-well:not(.empty)');
+         var selectedWells = [];
+
+         wells.forEach(function(well) {
+           var wellRect = well.getBoundingClientRect();
+           // Check if well intersects with selection rectangle
+           if (!(wellRect.right < selRect.left ||
+                 wellRect.left > selRect.right ||
+                 wellRect.bottom < selRect.top ||
+                 wellRect.top > selRect.bottom)) {
+             var wellIndex = well.getAttribute('data-well');
+             if (wellIndex) selectedWells.push(parseInt(wellIndex));
+           }
+         });
+
+         if (selectedWells.length > 0) {
+           var isCtrl = e.ctrlKey || e.metaKey;
+           Shiny.setInputValue('plate_drag_select', {
+             wells: selectedWells,
+             ctrlKey: isCtrl,
+             time: Date.now()
+           });
+         }
+       });
+     });
+   "))
  ),
 
  # Header
@@ -966,7 +1027,10 @@ ui <- fluidPage(
                    ),
 
                    # The plate grid (generated dynamically)
-                   uiOutput("plate_ui"),
+                   div(id = "plate-wrapper", style = "position: relative;",
+                     uiOutput("plate_ui"),
+                     div(id = "selection-rect", style = "display: none; position: absolute; border: 2px dashed var(--primary-color); background: rgba(102, 126, 234, 0.1); pointer-events: none; z-index: 100;")
+                   ),
 
                    # Legend
                    div(class = "plate-legend",
@@ -1044,6 +1108,17 @@ ui <- fluidPage(
                      ),
                      actionButton("set_control", "Set as Control",
                                  class = "btn-apply", style = "background: var(--danger-color);")
+                   ),
+
+                   # Apply All Fields Button
+                   div(class = "batch-edit-row", style = "margin-top: 1rem; padding-top: 0.75rem; border-top: 2px solid var(--primary-color);",
+                     div(class = "batch-input-group", style = "flex: 2;",
+                       tags$label("Apply All Fields", style = "color: var(--primary-color);"),
+                       tags$small("Apply all non-empty fields above to selected samples",
+                                 style = "color: var(--text-muted); display: block;")
+                     ),
+                     actionButton("apply_all", "Apply All",
+                                 class = "btn-apply", style = "background: var(--primary-color); font-weight: 700;")
                    )
                  ),
 
@@ -1416,12 +1491,12 @@ server <- function(input, output, session) {
          ct_val <- mean_cts[well_index]
          ct_display <- if (is.na(ct_val)) "-" else ct_val
 
-         # Create well with click handler (shift+click for range)
+         # Create well with click handler (shift+click for range, drag support)
          plate_elements[[length(plate_elements) + 1]] <- tags$div(
            class = well_classes,
+           `data-well` = well_index,
            onclick = sprintf("Shiny.setInputValue('plate_well_click', {well: %d, shiftKey: event.shiftKey, ctrlKey: event.ctrlKey || event.metaKey, time: Date.now()})", well_index),
-           div(class = "well-id", well_name),
-           div(class = "well-value", ct_display)
+           ct_display
          )
        } else {
          # Empty well (beyond sample count)
@@ -1485,6 +1560,27 @@ server <- function(input, output, session) {
    # Update DT selection to match
    proxy <- dataTableProxy("sample_table")
    selectRows(proxy, rv$selected_rows)
+ })
+
+ # Handle drag-to-select from plate
+ observeEvent(input$plate_drag_select, {
+   req(input$plate_drag_select)
+   wells <- input$plate_drag_select$wells
+   ctrl_key <- isTRUE(input$plate_drag_select$ctrlKey)
+
+   if (length(wells) > 0) {
+     if (ctrl_key) {
+       # Ctrl+drag: add to existing selection
+       rv$selected_rows <- unique(c(rv$selected_rows, wells))
+     } else {
+       # Normal drag: replace selection
+       rv$selected_rows <- wells
+     }
+
+     # Update DT selection to match
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
  })
 
  # Plate row selection buttons
@@ -1652,6 +1748,38 @@ server <- function(input, output, session) {
    rv$sample_metadata$Is_Control[rv$selected_rows] <- TRUE
    showNotification(paste(length(rv$selected_rows),
                          "sample(s) set as control group"), type = "message")
+ })
+
+ # Apply All non-empty fields
+ observeEvent(input$apply_all, {
+   req(length(rv$selected_rows) > 0)
+
+   applied <- c()
+
+   # Apply Cell Line if not empty
+   if (!is.null(input$batch_cellline) && input$batch_cellline != "") {
+     rv$sample_metadata$Cell_Line[rv$selected_rows] <- input$batch_cellline
+     applied <- c(applied, paste0("Cell Line='", input$batch_cellline, "'"))
+   }
+
+   # Apply Condition if not empty
+   if (!is.null(input$batch_condition) && input$batch_condition != "") {
+     rv$sample_metadata$Condition[rv$selected_rows] <- input$batch_condition
+     applied <- c(applied, paste0("Condition='", input$batch_condition, "'"))
+   }
+
+   # Apply Treatment if not empty
+   if (!is.null(input$batch_treatment) && input$batch_treatment != "") {
+     rv$sample_metadata$Treatment[rv$selected_rows] <- input$batch_treatment
+     applied <- c(applied, paste0("Treatment='", input$batch_treatment, "'"))
+   }
+
+   if (length(applied) > 0) {
+     showNotification(paste("Applied", paste(applied, collapse = ", "), "to",
+                           length(rv$selected_rows), "samples"), type = "message")
+   } else {
+     showNotification("No fields to apply - please fill in at least one field", type = "warning")
+   }
  })
 
  # ==================== QUICK SELECT FUNCTIONS ====================
