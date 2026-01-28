@@ -1562,6 +1562,13 @@ server <- function(input, output, session) {
    n_samples <- nrow(rv$raw_data)
    max_wells <- 96  # 8 rows x 12 columns
 
+   # Debug: Log data info to console
+   cat("\n=== PLATE RENDERING DEBUG ===\n")
+   cat("n_samples:", n_samples, "\n")
+   cat("ncol(raw_data):", ncol(rv$raw_data), "\n")
+   cat("First row values:", paste(head(unlist(rv$raw_data[1, ]), 6), collapse=", "), "\n")
+   cat("==============================\n")
+
    # Row labels
    row_labels <- LETTERS[1:8]
    col_labels <- 1:12
@@ -1590,6 +1597,10 @@ server <- function(input, output, session) {
        NA
      }
    })
+   
+   # Debug: Show first few Ct values
+   cat("reps setting:", reps, "\n")
+   cat("First 6 mean Ct values:", paste(head(mean_cts, 6), collapse=", "), "\n")
 
    # Create group color mapping based on unique Cell_Line + Condition combinations
    group_colors <- list()
