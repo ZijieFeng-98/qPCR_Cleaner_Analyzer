@@ -1571,14 +1571,20 @@ server <- function(input, output, session) {
    reps <- if (!is.null(input$reps)) as.numeric(input$reps) else 3
    reps <- min(reps, ncol(rv$raw_data))  # Don't exceed available columns
    
+   # Debug: print data structure to help identify issues
+   # print(paste("n_samples:", n_samples, "ncol:", ncol(rv$raw_data), "reps:", reps))
+   # print(head(rv$raw_data))
+   
    mean_cts <- sapply(1:n_samples, function(i) {
      # Get values from first reps columns for this sample
      if (reps > 0 && ncol(rv$raw_data) >= reps) {
        vals <- as.numeric(unlist(rv$raw_data[i, 1:reps]))
-       if (all(is.na(vals))) {
+       # Return mean, or the first non-NA value if only one exists
+       valid_vals <- vals[!is.na(vals)]
+       if (length(valid_vals) == 0) {
          NA
        } else {
-         round(mean(vals, na.rm = TRUE), 1)
+         round(mean(valid_vals), 1)
        }
      } else {
        NA
