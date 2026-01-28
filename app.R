@@ -826,13 +826,15 @@ ui <- fluidPage(
        var startX, startY;
        var selectionRect = null;
        var plateWrapper = null;
+       var dragStartedOnWell = false;
+       var dragDistance = 0;
+       var MIN_DRAG_DISTANCE = 10; // pixels
 
        $(document).on('mousedown', '.plate-grid', function(e) {
-         if (e.target.classList.contains('plate-well') || e.target.closest('.plate-well')) {
-           return; // Let individual well clicks work normally
-         }
          e.preventDefault();
          isDragging = true;
+         dragStartedOnWell = e.target.classList.contains('plate-well') || e.target.closest('.plate-well');
+         dragDistance = 0;
          plateWrapper = document.getElementById('plate-wrapper');
          selectionRect = document.getElementById('selection-rect');
          var rect = plateWrapper.getBoundingClientRect();
@@ -842,8 +844,7 @@ ui <- fluidPage(
          selectionRect.style.top = startY + 'px';
          selectionRect.style.width = '0px';
          selectionRect.style.height = '0px';
-         selectionRect.style.display = 'block';
-       });
+         });
 
        $(document).on('mousemove', function(e) {
          if (!isDragging || !plateWrapper) return;
@@ -856,10 +857,17 @@ ui <- fluidPage(
          var width = Math.abs(currentX - startX);
          var height = Math.abs(currentY - startY);
 
-         selectionRect.style.left = x + 'px';
-         selectionRect.style.top = y + 'px';
-         selectionRect.style.width = width + 'px';
-         selectionRect.style.height = height + 'px';
+         // Track drag distance
+         dragDistance = Math.sqrt(width * width + height * height);
+
+         // Only show selection rect if dragged beyond threshold
+         if (dragDistance >= MIN_DRAG_DISTANCE) {
+           selectionRect.style.left = x + 'px';
+           selectionRect.style.top = y + 'px';
+           selectionRect.style.width = width + 'px';
+           selectionRect.style.height = height + 'px';
+           selectionRect.style.display = 'block';
+         }
        });
 
        $(document).on('mouseup', function(e) {
@@ -868,20 +876,26 @@ ui <- fluidPage(
 
          if (!selectionRect || !plateWrapper) return;
 
+         // If drag was too short, treat as click on well (don't select)
+         if (dragDistance < MIN_DRAG_DISTANCE) {
+           selectionRect.style.display = 'none';
+           return;
+         }
+
          var selRect = selectionRect.getBoundingClientRect();
          selectionRect.style.display = 'none';
 
-         // Find wells within selection rectangle
+         // Find wells FULLY CONTAINED within selection rectangle
          var wells = plateWrapper.querySelectorAll('.plate-well:not(.empty)');
          var selectedWells = [];
 
          wells.forEach(function(well) {
            var wellRect = well.getBoundingClientRect();
-           // Check if well intersects with selection rectangle
-           if (!(wellRect.right < selRect.left ||
-                 wellRect.left > selRect.right ||
-                 wellRect.bottom < selRect.top ||
-                 wellRect.top > selRect.bottom)) {
+           // Check if well is FULLY CONTAINED (not just touching)
+           if (wellRect.left >= selRect.left &&
+               wellRect.right <= selRect.right &&
+               wellRect.top >= selRect.top &&
+               wellRect.bottom <= selRect.bottom) {
              var wellIndex = well.getAttribute('data-well');
              if (wellIndex) selectedWells.push(parseInt(wellIndex));
            }
@@ -1489,14 +1503,14 @@ server <- function(input, output, session) {
 
          # Get mean Ct value for display
          ct_val <- mean_cts[well_index]
-         ct_display <- if (is.na(ct_val)) "-" else ct_val
+         ct_display <- if (is.na(ct_val)) "-" else as.character(ct_val)
 
          # Create well with click handler (shift+click for range, drag support)
          plate_elements[[length(plate_elements) + 1]] <- tags$div(
            class = well_classes,
            `data-well` = well_index,
            onclick = sprintf("Shiny.setInputValue('plate_well_click', {well: %d, shiftKey: event.shiftKey, ctrlKey: event.ctrlKey || event.metaKey, time: Date.now()})", well_index),
-           ct_display
+           tags$span(ct_display, style = "pointer-events: none;")
          )
        } else {
          # Empty well (beyond sample count)
