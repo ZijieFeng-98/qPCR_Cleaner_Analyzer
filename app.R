@@ -1576,18 +1576,35 @@ server <- function(input, output, session) {
    # Calculate mean Ct for each sample
    # Use first 3 or 4 columns based on reps setting (default to 3)
    reps <- if (!is.null(input$reps)) as.numeric(input$reps) else 3
-   reps <- min(reps, ncol(rv$raw_data))  # Don't exceed available columns
    
-   # Debug: print data structure to help identify issues
-   # print(paste("n_samples:", n_samples, "ncol:", ncol(rv$raw_data), "reps:", reps))
-   # print(head(rv$raw_data))
+   # Detect if first column is sample IDs (sequential integers 1,2,3...)
+   # If so, skip it when extracting Ct values
+   first_col <- as.numeric(unlist(rv$raw_data[, 1]))
+   is_sample_id_col <- !any(is.na(first_col)) && 
+                       all(first_col == 1:nrow(rv$raw_data)) ||
+                       (length(unique(first_col)) == nrow(rv$raw_data) && 
+                        all(diff(sort(first_col)) == 1))
+   
+   # Determine starting column for Ct data
+   start_col <- if (is_sample_id_col) 2 else 1
+   end_col <- start_col + reps - 1
+   end_col <- min(end_col, ncol(rv$raw_data))  # Don't exceed available columns
+   
+   cat("\n=== Ct EXTRACTION DEBUG ===\n")
+   cat("First column values (first 5):", paste(head(first_col, 5), collapse=", "), "\n")
+   cat("Is sample ID column:", is_sample_id_col, "\n")
+   cat("Using columns", start_col, "to", end_col, "for Ct values\n")
    
    mean_cts <- sapply(1:n_samples, function(i) {
-     # Get values from first reps columns for this sample
-     if (reps > 0 && ncol(rv$raw_data) >= reps) {
-       vals <- as.numeric(unlist(rv$raw_data[i, 1:reps]))
-       # Return mean, or the first non-NA value if only one exists
-       valid_vals <- vals[!is.na(vals)]
+     # Get values from Ct columns for this sample
+     if (end_col >= start_col && ncol(rv$raw_data) >= end_col) {
+       vals <- as.numeric(unlist(rv$raw_data[i, start_col:end_col]))
+       # Return mean of valid (non-NA, reasonable Ct range 5-45) values
+       valid_vals <- vals[!is.na(vals) & vals >= 5 & vals <= 50]
+       if (length(valid_vals) == 0) {
+         # Try without range filter
+         valid_vals <- vals[!is.na(vals)]
+       }
        if (length(valid_vals) == 0) {
          NA
        } else {
@@ -1598,9 +1615,8 @@ server <- function(input, output, session) {
      }
    })
    
-   # Debug: Show first few Ct values
-   cat("reps setting:", reps, "\n")
    cat("First 6 mean Ct values:", paste(head(mean_cts, 6), collapse=", "), "\n")
+   cat("===========================\n")
 
    # Create group color mapping based on unique Cell_Line + Condition combinations
    group_colors <- list()
