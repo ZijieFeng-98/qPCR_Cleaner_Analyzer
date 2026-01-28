@@ -511,6 +511,69 @@ table.dataTable tbody tr.selected td {
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.4);
 }
 
+/* Well Tooltip */
+.well-tooltip {
+  position: fixed;
+  z-index: 1000;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--shadow-lg);
+  font-size: 0.8rem;
+  pointer-events: none;
+  max-width: 220px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.well-tooltip.visible {
+  opacity: 1;
+}
+
+.well-tooltip .tooltip-title {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.well-tooltip .tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.25rem 0;
+}
+
+.well-tooltip .tooltip-label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.well-tooltip .tooltip-value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.well-tooltip .tooltip-value.empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Group Colors - distinct colors for different groups */
+.plate-well.group-1 { background: linear-gradient(145deg, #dbeafe, #bfdbfe) !important; border-color: #3b82f6 !important; }
+.plate-well.group-2 { background: linear-gradient(145deg, #e0e7ff, #c7d2fe) !important; border-color: #6366f1 !important; }
+.plate-well.group-3 { background: linear-gradient(145deg, #d1fae5, #a7f3d0) !important; border-color: #10b981 !important; }
+.plate-well.group-4 { background: linear-gradient(145deg, #fef3c7, #fde68a) !important; border-color: #f59e0b !important; }
+.plate-well.group-5 { background: linear-gradient(145deg, #fce7f3, #fbcfe8) !important; border-color: #ec4899 !important; }
+.plate-well.group-6 { background: linear-gradient(145deg, #e0f2fe, #bae6fd) !important; border-color: #0ea5e9 !important; }
+.plate-well.group-7 { background: linear-gradient(145deg, #f3e8ff, #e9d5ff) !important; border-color: #a855f7 !important; }
+.plate-well.group-8 { background: linear-gradient(145deg, #ccfbf1, #99f6e4) !important; border-color: #14b8a6 !important; }
+.plate-well.group-9 { background: linear-gradient(145deg, #fef9c3, #fef08a) !important; border-color: #eab308 !important; }
+.plate-well.group-10 { background: linear-gradient(145deg, #ffe4e6, #fecdd3) !important; border-color: #f43f5e !important; }
+.plate-well.group-11 { background: linear-gradient(145deg, #e7e5e4, #d6d3d1) !important; border-color: #78716c !important; }
+.plate-well.group-12 { background: linear-gradient(145deg, #cffafe, #a5f3fc) !important; border-color: #06b6d4 !important; }
+
 /* Row/Column Select Buttons */
 .plate-select-buttons {
   display: flex;
@@ -908,6 +971,58 @@ ui <- fluidPage(
              ctrlKey: isCtrl,
              time: Date.now()
            });
+         }
+       });
+
+       // Tooltip functionality for wells
+       var tooltip = null;
+       
+       $(document).on('mouseenter', '.plate-well:not(.empty)', function(e) {
+         var well = $(this);
+         var wellData = well.data();
+         
+         if (!tooltip) {
+           tooltip = $('<div class="well-tooltip"></div>').appendTo('body');
+         }
+         
+         var wellName = wellData.wellname || '-';
+         var cellLine = wellData.cellline || '';
+         var condition = wellData.condition || '';
+         var treatment = wellData.treatment || '';
+         var ctValue = wellData.ctvalue || '-';
+         var isControl = wellData.iscontrol === 'true' || wellData.iscontrol === true;
+         
+         var html = '<div class="tooltip-title">Well ' + wellName + '</div>';
+         html += '<div class="tooltip-row"><span class="tooltip-label">Ct Value:</span><span class="tooltip-value">' + ctValue + '</span></div>';
+         html += '<div class="tooltip-row"><span class="tooltip-label">Cell Line:</span><span class="tooltip-value' + (cellLine ? '' : ' empty') + '">' + (cellLine || 'Not set') + '</span></div>';
+         html += '<div class="tooltip-row"><span class="tooltip-label">Condition:</span><span class="tooltip-value' + (condition ? '' : ' empty') + '">' + (condition || 'Not set') + '</span></div>';
+         html += '<div class="tooltip-row"><span class="tooltip-label">Treatment:</span><span class="tooltip-value' + (treatment ? '' : ' empty') + '">' + (treatment || 'Not set') + '</span></div>';
+         if (isControl) {
+           html += '<div class="tooltip-row"><span class="tooltip-label">Status:</span><span class="tooltip-value" style="color: #dc2626;">Control Group</span></div>';
+         }
+         
+         tooltip.html(html);
+         tooltip.addClass('visible');
+       });
+       
+       $(document).on('mousemove', '.plate-well:not(.empty)', function(e) {
+         if (tooltip) {
+           var x = e.clientX + 15;
+           var y = e.clientY + 15;
+           
+           // Keep tooltip in viewport
+           var tooltipWidth = tooltip.outerWidth();
+           var tooltipHeight = tooltip.outerHeight();
+           if (x + tooltipWidth > window.innerWidth) x = e.clientX - tooltipWidth - 15;
+           if (y + tooltipHeight > window.innerHeight) y = e.clientY - tooltipHeight - 15;
+           
+           tooltip.css({ left: x + 'px', top: y + 'px' });
+         }
+       });
+       
+       $(document).on('mouseleave', '.plate-well', function() {
+         if (tooltip) {
+           tooltip.removeClass('visible');
          }
        });
      });
@@ -1458,6 +1573,17 @@ server <- function(input, output, session) {
      if (all(is.na(vals))) NA else round(mean(vals, na.rm = TRUE), 1)
    })
 
+   # Create group color mapping based on unique Cell_Line + Condition combinations
+   group_colors <- list()
+   if (!is.null(rv$sample_metadata)) {
+     # Create unique group identifiers
+     groups <- paste0(rv$sample_metadata$Cell_Line, "|", rv$sample_metadata$Condition)
+     unique_groups <- unique(groups[groups != "|"])  # Exclude empty groups
+     for (i in seq_along(unique_groups)) {
+       group_colors[[unique_groups[i]]] <- ((i - 1) %% 12) + 1  # Cycle through 12 colors
+     }
+   }
+
    # Create plate grid
    plate_elements <- list()
 
@@ -1482,21 +1608,33 @@ server <- function(input, output, session) {
          # Determine well class based on metadata
          well_classes <- "plate-well"
 
+         # Get metadata for tooltip and coloring
+         cell_line <- ""
+         condition <- ""
+         treatment <- ""
+         is_control <- FALSE
+
          if (well_index %in% rv$selected_rows) {
            well_classes <- paste(well_classes, "selected")
          }
 
          if (!is.null(rv$sample_metadata)) {
            meta <- rv$sample_metadata[well_index, ]
-           if (meta$Is_Control) {
+           cell_line <- meta$Cell_Line
+           condition <- meta$Condition
+           treatment <- meta$Treatment
+           is_control <- meta$Is_Control
+
+           # Add group color class
+           group_key <- paste0(cell_line, "|", condition)
+           if (group_key != "|" && !is.null(group_colors[[group_key]])) {
+             well_classes <- paste(well_classes, paste0("group-", group_colors[[group_key]]))
+           }
+
+           # Add type class (control overrides group color styling)
+           if (is_control) {
              well_classes <- paste(well_classes, "is-control")
-           } else if (meta$Cell_Line != "") {
-             well_classes <- paste(well_classes, "has-cellline")
-           } else if (meta$Condition != "") {
-             well_classes <- paste(well_classes, "has-condition")
-           } else if (meta$Treatment != "") {
-             well_classes <- paste(well_classes, "has-treatment")
-           } else {
+           } else if (cell_line == "" && condition == "" && treatment == "") {
              well_classes <- paste(well_classes, "has-data")
            }
          }
@@ -1505,10 +1643,16 @@ server <- function(input, output, session) {
          ct_val <- mean_cts[well_index]
          ct_display <- if (is.na(ct_val)) "-" else as.character(ct_val)
 
-         # Create well with click handler (shift+click for range, drag support)
+         # Create well with click handler and data attributes for tooltip
          plate_elements[[length(plate_elements) + 1]] <- tags$div(
            class = well_classes,
            `data-well` = well_index,
+           `data-wellname` = well_name,
+           `data-cellline` = cell_line,
+           `data-condition` = condition,
+           `data-treatment` = treatment,
+           `data-ctvalue` = ct_display,
+           `data-iscontrol` = tolower(as.character(is_control)),
            onclick = sprintf("Shiny.setInputValue('plate_well_click', {well: %d, shiftKey: event.shiftKey, ctrlKey: event.ctrlKey || event.metaKey, time: Date.now()})", well_index),
            tags$span(ct_display, style = "pointer-events: none;")
          )
