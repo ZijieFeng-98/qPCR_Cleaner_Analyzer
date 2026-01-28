@@ -1675,7 +1675,7 @@ server <- function(input, output, session) {
          # Create well with click handler and data attributes for tooltip
          plate_elements[[length(plate_elements) + 1]] <- tags$div(
            class = well_classes,
-           `data-well` = well_index,
+           `data-well` = as.character(well_index),
            `data-wellname` = well_name,
            `data-cellline` = cell_line,
            `data-condition` = condition,
@@ -1683,7 +1683,7 @@ server <- function(input, output, session) {
            `data-ctvalue` = ct_display,
            `data-iscontrol` = tolower(as.character(is_control)),
            onclick = sprintf("Shiny.setInputValue('plate_well_click', {well: %d, shiftKey: event.shiftKey, ctrlKey: event.ctrlKey || event.metaKey, time: Date.now()})", well_index),
-           tags$span(ct_display, style = "pointer-events: none;")
+           ct_display  # Direct text content, no wrapper
          )
        } else {
          # Empty well (beyond sample count)
