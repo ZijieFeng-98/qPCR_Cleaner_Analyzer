@@ -1566,11 +1566,23 @@ server <- function(input, output, session) {
    row_labels <- LETTERS[1:8]
    col_labels <- 1:12
 
-   # Calculate mean Ct for each sample (first gene as reference)
-   reps <- as.numeric(input$reps)
+   # Calculate mean Ct for each sample
+   # Use first 3 or 4 columns based on reps setting (default to 3)
+   reps <- if (!is.null(input$reps)) as.numeric(input$reps) else 3
+   reps <- min(reps, ncol(rv$raw_data))  # Don't exceed available columns
+   
    mean_cts <- sapply(1:n_samples, function(i) {
-     vals <- as.numeric(rv$raw_data[i, 1:reps])
-     if (all(is.na(vals))) NA else round(mean(vals, na.rm = TRUE), 1)
+     # Get values from first reps columns for this sample
+     if (reps > 0 && ncol(rv$raw_data) >= reps) {
+       vals <- as.numeric(unlist(rv$raw_data[i, 1:reps]))
+       if (all(is.na(vals))) {
+         NA
+       } else {
+         round(mean(vals, na.rm = TRUE), 1)
+       }
+     } else {
+       NA
+     }
    })
 
    # Create group color mapping based on unique Cell_Line + Condition combinations
