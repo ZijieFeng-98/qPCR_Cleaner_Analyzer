@@ -1047,7 +1047,10 @@ ui <- fluidPage(
            fileInput("file", label = NULL,
                     accept = c(".csv", ".xlsx", ".xls"),
                     placeholder = "Choose file..."),
-           checkboxInput("has_header", "Has column headers", value = FALSE)
+           checkboxInput("has_header", "Has column headers", value = FALSE),
+           checkboxInput("skip_first_col", "First column is Sample ID", value = FALSE),
+           tags$small("Check if col 1 has sample IDs instead of Ct values",
+                     style = "color: var(--text-muted); display: block; margin-top: -0.5rem;")
          ),
 
          # Replicate Settings
@@ -1472,6 +1475,32 @@ server <- function(input, output, session) {
      raw_numeric <- as.data.frame(lapply(raw, function(x) {
        if (is.numeric(x)) x else as.numeric(as.character(x))
      }))
+
+     # Skip first column if user checked "First column is Sample ID"
+     # or if auto-detected as sequential sample IDs
+     skip_col1 <- FALSE
+     
+     if (isTRUE(input$skip_first_col)) {
+       # User explicitly said first column is Sample ID
+       skip_col1 <- TRUE
+     } else if (ncol(raw_numeric) > 1) {
+       # Auto-detect: check if first column looks like sample IDs (1, 2, 3...)
+       first_col <- raw_numeric[[1]]
+       is_all_valid <- !any(is.na(first_col))
+       is_integer <- all(first_col == floor(first_col), na.rm = TRUE)
+       is_sequential <- length(first_col) > 1 && 
+                       all(diff(first_col) == 1, na.rm = TRUE) && 
+                       first_col[1] %in% c(0, 1)
+       if (is_all_valid && is_integer && is_sequential) {
+         skip_col1 <- TRUE
+         showNotification("Auto-detected Sample ID column. Skipping column 1.", 
+                         type = "message", duration = 4)
+       }
+     }
+     
+     if (skip_col1 && ncol(raw_numeric) > 1) {
+       raw_numeric <- raw_numeric[, -1, drop = FALSE]
+     }
 
      rv$raw_data <- raw_numeric
      rv$file_uploaded <- TRUE
