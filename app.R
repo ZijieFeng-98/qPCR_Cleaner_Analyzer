@@ -1002,6 +1002,10 @@ ui <- fluidPage(
          }
          
          tooltip.html(html);
+         // Set initial position
+         var x = e.clientX + 15;
+         var y = e.clientY + 15;
+         tooltip.css({ left: x + 'px', top: y + 'px' });
          tooltip.addClass('visible');
        });
        
@@ -1587,7 +1591,9 @@ server <- function(input, output, session) {
  # Render the plate UI
  output$plate_ui <- renderUI({
    req(rv$raw_data)
-
+   # Force reactivity on sample_metadata changes
+   rv$sample_metadata
+   
    n_samples <- nrow(rv$raw_data)
    max_wells <- 96  # 8 rows x 12 columns
 
@@ -1749,10 +1755,11 @@ server <- function(input, output, session) {
  # Handle well clicks with shift/ctrl support
  observeEvent(input$plate_well_click, {
    req(input$plate_well_click)
-   well <- input$plate_well_click$well
+   well <- as.numeric(input$plate_well_click$well)
    shift_key <- isTRUE(input$plate_well_click$shiftKey)
    ctrl_key <- isTRUE(input$plate_well_click$ctrlKey)
 
+   req(rv$raw_data)
    n_samples <- nrow(rv$raw_data)
 
    if (shift_key && !is.null(rv$last_clicked_well)) {
@@ -1958,6 +1965,7 @@ server <- function(input, output, session) {
    rv$sample_metadata$Cell_Line[rv$selected_rows] <- input$batch_cellline
    showNotification(paste("Cell Line set to '", input$batch_cellline, "' for ",
                          length(rv$selected_rows), " samples"), type = "message")
+   updateTextInput(session, "batch_cellline", value = "")
  })
 
  observeEvent(input$apply_condition, {
@@ -1965,6 +1973,7 @@ server <- function(input, output, session) {
    rv$sample_metadata$Condition[rv$selected_rows] <- input$batch_condition
    showNotification(paste("Condition set to '", input$batch_condition, "' for ",
                          length(rv$selected_rows), " samples"), type = "message")
+   updateTextInput(session, "batch_condition", value = "")
  })
 
  observeEvent(input$apply_treatment, {
@@ -1972,6 +1981,7 @@ server <- function(input, output, session) {
    rv$sample_metadata$Treatment[rv$selected_rows] <- input$batch_treatment
    showNotification(paste("Treatment set to '", input$batch_treatment, "' for ",
                          length(rv$selected_rows), " samples"), type = "message")
+   updateTextInput(session, "batch_treatment", value = "")
  })
 
  observeEvent(input$set_control, {
@@ -2009,6 +2019,10 @@ server <- function(input, output, session) {
    if (length(applied) > 0) {
      showNotification(paste("Applied", paste(applied, collapse = ", "), "to",
                            length(rv$selected_rows), "samples"), type = "message")
+     # Clear all text inputs after applying
+     updateTextInput(session, "batch_cellline", value = "")
+     updateTextInput(session, "batch_condition", value = "")
+     updateTextInput(session, "batch_treatment", value = "")
    } else {
      showNotification("No fields to apply - please fill in at least one field", type = "warning")
    }
