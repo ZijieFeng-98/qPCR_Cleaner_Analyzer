@@ -1,18 +1,18 @@
 ################################################################################
 # qPCR Cleaner and Analyzer
-# Enhanced version with improved UI, error handling, and user experience
+# Modern UI Design with Sample Setup and Batch Editing
 #
 # Features:
 # - Upload CSV or Excel files with or without headers
-# - Automatic data validation and cleaning
+# - Interactive Sample Setup with batch editing
+# - Assign Cell Line, Condition, Treatment to multiple samples at once
+# - Define control groups for relative expression
 # - Flexible replicate handling (3 or 4 replicates)
 # - Outlier detection and removal
 # - ΔCt calculation with optimal pairing
 # - Expression analysis and relative expression
 # - Statistical summaries with mean and SD
 # - Interactive data visualization
-# - Comprehensive error handling
-# - Clear user instructions
 ################################################################################
 
 library(shiny)
@@ -25,1139 +25,2655 @@ library(tidyr)
 library(shinyjs)
 library(shinyWidgets)
 
-# Custom CSS for better styling
-custom_css <- "
-.nav-tabs > li > a {
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  margin-right: 2px;
+# Modern CSS Theme
+modern_css <- "
+/* ==================== ROOT VARIABLES ==================== */
+:root {
+ --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+ --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+ --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+ --info-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+ --warning-gradient: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+ --dark-gradient: linear-gradient(135deg, #232526 0%, #414345 100%);
+
+ --primary-color: #667eea;
+ --secondary-color: #764ba2;
+ --accent-color: #00f2fe;
+ --success-color: #38ef7d;
+ --warning-color: #ffd200;
+ --danger-color: #f5576c;
+
+ --bg-light: #f8fafc;
+ --bg-card: #ffffff;
+ --text-primary: #1e293b;
+ --text-secondary: #64748b;
+ --text-muted: #94a3b8;
+ --border-color: #e2e8f0;
+
+ --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+ --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+ --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+ --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+ --radius-sm: 6px;
+ --radius-md: 10px;
+ --radius-lg: 16px;
+ --radius-xl: 24px;
 }
 
-.nav-tabs > li.active > a {
-  background-color: #007bff;
-  color: white;
-  border: 1px solid #007bff;
+/* ==================== GLOBAL STYLES ==================== */
+body {
+ background: var(--bg-light);
+ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+ color: var(--text-primary);
+ line-height: 1.6;
 }
 
-.well {
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 5px;
-  padding: 15px;
-  margin-bottom: 15px;
+.container-fluid { padding: 0; max-width: 100%; }
+
+/* ==================== HEADER STYLES ==================== */
+.app-header {
+ background: var(--primary-gradient);
+ padding: 1.5rem 2.5rem;
+ margin-bottom: 1.5rem;
+ position: relative;
+ overflow: hidden;
 }
 
-.btn-primary {
-  background-color: #007bff;
-  border-color: #007bff;
+.app-header::before {
+ content: '';
+ position: absolute;
+ top: -50%;
+ right: -10%;
+ width: 400px;
+ height: 400px;
+ background: rgba(255,255,255,0.1);
+ border-radius: 50%;
 }
 
-.btn-primary:hover {
-  background-color: #0056b3;
-  border-color: #0056b3;
+.app-title {
+ color: white;
+ font-size: 2rem;
+ font-weight: 700;
+ margin: 0 0 0.25rem 0;
+ position: relative;
+ z-index: 1;
 }
 
-.alert {
-  border-radius: 5px;
-  margin-bottom: 15px;
+.app-subtitle {
+ color: rgba(255,255,255,0.9);
+ font-size: 1rem;
+ font-weight: 400;
+ margin: 0;
+ position: relative;
+ z-index: 1;
 }
 
-.table-responsive {
-  border-radius: 5px;
-  overflow: hidden;
+/* ==================== LAYOUT ==================== */
+.main-content { padding: 0 2rem 2rem 2rem; }
+
+/* ==================== CARD STYLES ==================== */
+.modern-card {
+ background: var(--bg-card);
+ border-radius: var(--radius-lg);
+ box-shadow: var(--shadow-md);
+ border: 1px solid var(--border-color);
+ margin-bottom: 1.5rem;
+ overflow: hidden;
 }
 
-.progress {
+.card-header {
+ background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+ padding: 1rem 1.25rem;
+ border-bottom: 1px solid var(--border-color);
+ display: flex;
+ align-items: center;
+ gap: 0.75rem;
+}
+
+.card-header-icon {
+ width: 36px;
+ height: 36px;
+ border-radius: var(--radius-md);
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ font-size: 1.1rem;
+ color: white;
+}
+
+.card-header-icon.purple { background: var(--primary-gradient); }
+.card-header-icon.teal { background: var(--info-gradient); }
+.card-header-icon.green { background: var(--success-gradient); }
+.card-header-icon.orange { background: var(--warning-gradient); }
+
+.card-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin: 0; }
+.card-body { padding: 1.25rem; }
+
+/* ==================== SIDEBAR STYLES ==================== */
+.sidebar-card {
+ background: var(--bg-card);
+ border-radius: var(--radius-lg);
+ box-shadow: var(--shadow-md);
+ border: 1px solid var(--border-color);
+ overflow: hidden;
+}
+
+.sidebar-section {
+ padding: 1rem;
+ border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-section:last-child { border-bottom: none; }
+
+.section-label {
+ font-size: 0.7rem;
+ font-weight: 600;
+ text-transform: uppercase;
+ letter-spacing: 0.5px;
+ color: var(--text-muted);
+ margin-bottom: 0.75rem;
+ display: flex;
+ align-items: center;
+ gap: 0.5rem;
+}
+
+.section-label::after {
+ content: '';
+ flex: 1;
+ height: 1px;
+ background: var(--border-color);
+}
+
+/* ==================== BATCH EDIT PANEL ==================== */
+.batch-edit-panel {
+ background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+ border: 2px solid var(--primary-color);
+ border-radius: var(--radius-lg);
+ padding: 1.25rem;
+ margin-bottom: 1rem;
+}
+
+.batch-edit-title {
+ font-size: 0.9rem;
+ font-weight: 600;
+ color: var(--primary-color);
+ margin-bottom: 1rem;
+ display: flex;
+ align-items: center;
+ gap: 0.5rem;
+}
+
+.batch-edit-row {
+ display: flex;
+ gap: 0.75rem;
+ margin-bottom: 0.75rem;
+ align-items: flex-end;
+}
+
+.batch-edit-row:last-child { margin-bottom: 0; }
+
+.batch-input-group {
+ flex: 1;
+}
+
+.batch-input-group label {
+ display: block;
+ font-size: 0.75rem;
+ font-weight: 500;
+ color: var(--text-secondary);
+ margin-bottom: 0.25rem;
+}
+
+.batch-input-group input,
+.batch-input-group select {
+ width: 100%;
+ padding: 0.5rem 0.75rem;
+ border: 2px solid var(--border-color);
+ border-radius: var(--radius-sm);
+ font-size: 0.875rem;
+ transition: all 0.2s ease;
+}
+
+.batch-input-group input:focus,
+.batch-input-group select:focus {
+ border-color: var(--primary-color);
+ outline: none;
+ box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.btn-apply {
+ background: var(--primary-gradient);
+ color: white;
+ border: none;
+ padding: 0.5rem 1rem;
+ border-radius: var(--radius-sm);
+ font-weight: 600;
+ font-size: 0.8rem;
+ cursor: pointer;
+ white-space: nowrap;
+ transition: all 0.2s ease;
+}
+
+.btn-apply:hover {
+ transform: translateY(-1px);
+ box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-apply-success {
+ background: var(--success-gradient);
+}
+
+.btn-apply-warning {
+ background: var(--warning-gradient);
+ color: #1e293b;
+}
+
+/* ==================== SAMPLE TABLE ==================== */
+.sample-table-container {
+ border: 1px solid var(--border-color);
+ border-radius: var(--radius-md);
+ overflow: hidden;
+}
+
+table.dataTable tbody tr.selected {
+ background: rgba(102, 126, 234, 0.15) !important;
+}
+
+table.dataTable tbody tr.selected td {
+ background: transparent !important;
+}
+
+.selection-info {
+ background: var(--info-gradient);
+ color: white;
+ padding: 0.75rem 1rem;
+ border-radius: var(--radius-md);
+ margin-bottom: 1rem;
+ font-weight: 500;
+ display: flex;
+ align-items: center;
+ gap: 0.5rem;
+}
+
+.selection-count {
+ background: rgba(255,255,255,0.3);
+ padding: 0.25rem 0.75rem;
+ border-radius: 50px;
+ font-weight: 700;
+}
+
+/* ==================== QUICK SELECT BUTTONS ==================== */
+.quick-select-panel {
+ display: flex;
+ flex-wrap: wrap;
+ gap: 0.5rem;
+ margin-bottom: 1rem;
+}
+
+.btn-quick {
+ background: var(--bg-light);
+ border: 2px solid var(--border-color);
+ padding: 0.4rem 0.75rem;
+ border-radius: var(--radius-sm);
+ font-size: 0.8rem;
+ font-weight: 500;
+ cursor: pointer;
+ transition: all 0.2s ease;
+}
+
+.btn-quick:hover {
+ border-color: var(--primary-color);
+ background: rgba(102, 126, 234, 0.1);
+}
+
+.btn-quick.active {
+ background: var(--primary-color);
+ border-color: var(--primary-color);
+ color: white;
+}
+
+/* ==================== GROUP CHIPS ==================== */
+.group-chip {
+ display: inline-block;
+ padding: 0.2rem 0.6rem;
+ border-radius: 50px;
+ font-size: 0.75rem;
+ font-weight: 600;
+}
+
+.chip-cellline { background: #e0e7ff; color: #3730a3; }
+.chip-condition { background: #d1fae5; color: #065f46; }
+.chip-treatment { background: #fef3c7; color: #92400e; }
+.chip-control { background: #fee2e2; color: #991b1b; }
+
+/* ==================== 96-WELL PLATE STYLES ==================== */
+.plate-container {
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.plate-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.plate-grid {
+  display: grid;
+  grid-template-columns: 30px repeat(12, 50px);
+  gap: 3px;
+  justify-content: center;
+  user-select: none;
+}
+
+.plate-header {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 0.25rem;
+  background: var(--bg-light);
+  border-radius: 4px;
+}
+
+.plate-row-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-light);
+  border-radius: 4px;
+}
+
+.plate-well {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+}
+
+/* Ct value displayed directly in well */
+
+.plate-well:hover {
+  border-color: var(--primary-color);
+  transform: scale(1.08);
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.plate-well.selected {
+  border: 4px solid var(--primary-color) !important;
+  background: linear-gradient(145deg, #e0e7ff 0%, #c7d2fe 100%) !important;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.4), inset 0 2px 4px rgba(102, 126, 234, 0.2) !important;
+  transform: scale(1.05);
+}
+
+.plate-well.selected {
+  color: var(--primary-color) !important;
+  font-weight: 800;
+}
+
+.plate-well.has-data {
+  background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%);
+  border-color: #60a5fa;
+}
+
+.plate-well.has-cellline {
+  background: linear-gradient(145deg, #e0e7ff 0%, #c7d2fe 100%);
+  border-color: #818cf8;
+  color: #4f46e5;
+}
+
+.plate-well.has-condition {
+  background: linear-gradient(145deg, #d1fae5 0%, #a7f3d0 100%);
+  border-color: #34d399;
+  color: #059669;
+}
+
+.plate-well.has-treatment {
+  background: linear-gradient(145deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #fbbf24;
+  color: #d97706;
+}
+
+.plate-well.is-control {
+  background: linear-gradient(145deg, #fee2e2 0%, #fecaca 100%);
+  border-color: #f87171;
+  color: #dc2626;
+}
+
+.plate-well.empty {
+  background: linear-gradient(145deg, #f1f5f9 0%, #e2e8f0 100%);
+  border: 2px dashed #cbd5e1;
+  opacity: 0.4;
+  cursor: default;
+}
+
+.plate-well.empty:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.plate-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 20px;
   height: 20px;
-  border-radius: 10px;
+  border-radius: 50%;
+  border: 2px solid;
 }
 
-.progress-bar {
-  background-color: #007bff;
+.legend-dot.cellline { background: linear-gradient(145deg, #e0e7ff, #c7d2fe); border-color: #818cf8; }
+.legend-dot.condition { background: linear-gradient(145deg, #d1fae5, #a7f3d0); border-color: #34d399; }
+.legend-dot.treatment { background: linear-gradient(145deg, #fef3c7, #fde68a); border-color: #fbbf24; }
+.legend-dot.control { background: linear-gradient(145deg, #fee2e2, #fecaca); border-color: #f87171; }
+.legend-dot.selected {
+  background: linear-gradient(145deg, #e0e7ff, #c7d2fe);
+  border: 3px solid #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.4);
+}
+
+/* Well Tooltip */
+.well-tooltip {
+  position: fixed;
+  z-index: 1000;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--shadow-lg);
+  font-size: 0.8rem;
+  pointer-events: none;
+  max-width: 220px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.well-tooltip.visible {
+  opacity: 1;
+}
+
+.well-tooltip .tooltip-title {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.well-tooltip .tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.25rem 0;
+}
+
+.well-tooltip .tooltip-label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.well-tooltip .tooltip-value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.well-tooltip .tooltip-value.empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Group Colors - distinct colors for different groups */
+.plate-well.group-1 { background: linear-gradient(145deg, #dbeafe, #bfdbfe) !important; border-color: #3b82f6 !important; }
+.plate-well.group-2 { background: linear-gradient(145deg, #e0e7ff, #c7d2fe) !important; border-color: #6366f1 !important; }
+.plate-well.group-3 { background: linear-gradient(145deg, #d1fae5, #a7f3d0) !important; border-color: #10b981 !important; }
+.plate-well.group-4 { background: linear-gradient(145deg, #fef3c7, #fde68a) !important; border-color: #f59e0b !important; }
+.plate-well.group-5 { background: linear-gradient(145deg, #fce7f3, #fbcfe8) !important; border-color: #ec4899 !important; }
+.plate-well.group-6 { background: linear-gradient(145deg, #e0f2fe, #bae6fd) !important; border-color: #0ea5e9 !important; }
+.plate-well.group-7 { background: linear-gradient(145deg, #f3e8ff, #e9d5ff) !important; border-color: #a855f7 !important; }
+.plate-well.group-8 { background: linear-gradient(145deg, #ccfbf1, #99f6e4) !important; border-color: #14b8a6 !important; }
+.plate-well.group-9 { background: linear-gradient(145deg, #fef9c3, #fef08a) !important; border-color: #eab308 !important; }
+.plate-well.group-10 { background: linear-gradient(145deg, #ffe4e6, #fecdd3) !important; border-color: #f43f5e !important; }
+.plate-well.group-11 { background: linear-gradient(145deg, #e7e5e4, #d6d3d1) !important; border-color: #78716c !important; }
+.plate-well.group-12 { background: linear-gradient(145deg, #cffafe, #a5f3fc) !important; border-color: #06b6d4 !important; }
+
+/* Row/Column Select Buttons */
+.plate-select-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-light);
+  border-radius: var(--radius-md);
+}
+
+.btn-plate-select {
+  background: white;
+  border: 2px solid var(--border-color);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-plate-select:hover {
+  border-color: var(--primary-color);
+  background: rgba(102, 126, 234, 0.1);
+  color: var(--primary-color);
+}
+
+.btn-plate-select:active {
+  transform: scale(0.95);
+}
+
+/* Selection hint */
+.plate-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(102, 126, 234, 0.08);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--primary-color);
+}
+
+/* ==================== BUTTON STYLES ==================== */
+.btn-modern {
+ border: none;
+ border-radius: var(--radius-md);
+ padding: 0.75rem 1.25rem;
+ font-weight: 600;
+ font-size: 0.9rem;
+ cursor: pointer;
+ transition: all 0.3s ease;
+ display: inline-flex;
+ align-items: center;
+ justify-content: center;
+ gap: 0.5rem;
+ width: 100%;
+}
+
+.btn-primary-gradient {
+ background: var(--primary-gradient);
+ color: white;
+ box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary-gradient:hover {
+ transform: translateY(-2px);
+ box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+.btn-success-gradient {
+ background: var(--success-gradient);
+ color: white;
+ box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);
+}
+
+.btn-outline {
+ background: transparent;
+ border: 2px solid var(--border-color);
+ color: var(--text-secondary);
+}
+
+.btn-outline:hover {
+ border-color: var(--primary-color);
+ color: var(--primary-color);
+}
+
+/* ==================== TAB STYLES ==================== */
+.nav-tabs > li > a {
+ border: none !important;
+ border-radius: var(--radius-md) !important;
+ padding: 0.75rem 1rem !important;
+ font-weight: 500 !important;
+ color: var(--text-secondary) !important;
+ background: transparent !important;
+ transition: all 0.2s ease !important;
+ margin: 0 2px !important;
+}
+
+.nav-tabs > li > a:hover {
+ background: rgba(102, 126, 234, 0.1) !important;
+ color: var(--primary-color) !important;
+}
+
+.nav-tabs > li.active > a,
+.nav-tabs > li.active > a:hover {
+ background: var(--primary-gradient) !important;
+ color: white !important;
+ box-shadow: var(--shadow-md) !important;
+}
+
+.nav-pills > li > a {
+ border-radius: var(--radius-sm) !important;
+ padding: 0.5rem 1rem !important;
+ font-size: 0.875rem !important;
+ font-weight: 500 !important;
+ color: var(--text-secondary) !important;
+ background: var(--bg-light) !important;
+ margin-right: 0.5rem !important;
+ border: 1px solid var(--border-color) !important;
+}
+
+.nav-pills > li.active > a {
+ background: var(--primary-color) !important;
+ color: white !important;
+ border-color: var(--primary-color) !important;
+}
+
+/* ==================== ALERT STYLES ==================== */
+.alert-modern {
+ border: none;
+ border-radius: var(--radius-md);
+ padding: 1rem 1.25rem;
+ display: flex;
+ align-items: flex-start;
+ gap: 0.75rem;
+ font-size: 0.9rem;
+}
+
+.alert-info-modern {
+ background: linear-gradient(135deg, rgba(79, 172, 254, 0.1) 0%, rgba(0, 242, 254, 0.1) 100%);
+ color: #0369a1;
+ border-left: 4px solid var(--accent-color);
+}
+
+.alert-warning-modern {
+ background: linear-gradient(135deg, rgba(247, 151, 30, 0.1) 0%, rgba(255, 210, 0, 0.1) 100%);
+ color: #92400e;
+ border-left: 4px solid var(--warning-color);
+}
+
+.alert-success-modern {
+ background: linear-gradient(135deg, rgba(17, 153, 142, 0.1) 0%, rgba(56, 239, 125, 0.1) 100%);
+ color: #065f46;
+ border-left: 4px solid var(--success-color);
+}
+
+/* ==================== TABLE STYLES ==================== */
+.dataTables_wrapper { font-size: 0.875rem; }
+
+table.dataTable { border-collapse: collapse !important; }
+
+table.dataTable thead th {
+ background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+ border-bottom: 2px solid var(--primary-color) !important;
+ color: var(--text-primary);
+ font-weight: 600;
+ padding: 0.875rem !important;
+ text-transform: uppercase;
+ font-size: 0.7rem;
+ letter-spacing: 0.5px;
+}
+
+table.dataTable tbody td {
+ padding: 0.75rem !important;
+ border-bottom: 1px solid var(--border-color) !important;
+ vertical-align: middle;
+}
+
+table.dataTable tbody tr:hover {
+ background: rgba(102, 126, 234, 0.05) !important;
+}
+
+/* ==================== PLOT CONTAINER ==================== */
+.plot-container {
+ background: var(--bg-light);
+ border-radius: var(--radius-md);
+ padding: 1rem;
+ border: 1px solid var(--border-color);
+}
+
+/* ==================== SECTION HEADERS ==================== */
+.section-header {
+ display: flex;
+ align-items: center;
+ gap: 0.75rem;
+ margin-bottom: 1rem;
+ padding-bottom: 0.75rem;
+ border-bottom: 2px solid var(--border-color);
+}
+
+.section-header-icon {
+ width: 32px;
+ height: 32px;
+ border-radius: var(--radius-sm);
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ font-size: 0.9rem;
+ color: white;
+ background: var(--primary-gradient);
+}
+
+.section-header-text {
+ font-size: 1rem;
+ font-weight: 600;
+ color: var(--text-primary);
+ margin: 0;
+}
+
+/* ==================== WORKFLOW STEPS ==================== */
+.workflow-steps {
+ display: flex;
+ gap: 0.5rem;
+ margin-bottom: 1.5rem;
+ flex-wrap: wrap;
+}
+
+.workflow-step {
+ display: flex;
+ align-items: center;
+ gap: 0.5rem;
+ padding: 0.5rem 1rem;
+ background: var(--bg-light);
+ border-radius: 50px;
+ font-size: 0.8rem;
+ font-weight: 500;
+ color: var(--text-muted);
+ border: 2px solid var(--border-color);
+}
+
+.workflow-step.active {
+ background: var(--primary-color);
+ color: white;
+ border-color: var(--primary-color);
+}
+
+.workflow-step.completed {
+ background: #d1fae5;
+ color: #065f46;
+ border-color: #10b981;
+}
+
+.step-number {
+ width: 20px;
+ height: 20px;
+ border-radius: 50%;
+ background: currentColor;
+ color: white;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ font-size: 0.7rem;
+ font-weight: 700;
+}
+
+.workflow-step.active .step-number,
+.workflow-step.completed .step-number {
+ background: rgba(255,255,255,0.3);
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 768px) {
+ .app-header { padding: 1rem; }
+ .app-title { font-size: 1.5rem; }
+ .main-content { padding: 0 1rem 1rem 1rem; }
+ .batch-edit-row { flex-direction: column; }
+}
+
+/* ==================== SHINY OVERRIDES ==================== */
+.shiny-notification {
+ border-radius: var(--radius-md);
+ border: none;
+ box-shadow: var(--shadow-lg);
+}
+
+.form-control {
+ border: 2px solid var(--border-color);
+ border-radius: var(--radius-sm);
+ padding: 0.5rem 0.75rem;
+}
+
+.form-control:focus {
+ border-color: var(--primary-color);
+ box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.checkbox label, .radio label {
+ font-weight: 500;
+ color: var(--text-secondary);
 }
 "
 
 ui <- fluidPage(
-  useShinyjs(),
-  tags$head(tags$style(HTML(custom_css))),
-  
-  titlePanel(
-    div(
-      h1("qPCR Cleaner and Analyzer", style = "color: #2c3e50; margin-bottom: 5px;"),
-      h4("Process and analyze qPCR data with advanced statistical methods", 
-         style = "color: #7f8c8d; font-weight: normal; margin-top: 0;")
-    )
-  ),
-  
-  sidebarLayout(
-    sidebarPanel(
-      width = 3,
-      
-      wellPanel(
-        h4("📁 Data Upload", style = "color: #2c3e50; margin-top: 0;"),
-        
-        fileInput("file", 
-                 label = "Upload your qPCR data file:",
-                 accept = c(".csv", ".xlsx", ".xls"),
-                 placeholder = "Choose CSV or Excel file..."),
-        
-        checkboxInput("has_header", "File has column headers", value = FALSE),
-        
-        hr(),
-        
-        h5("🔧 Analysis Settings", style = "color: #2c3e50;"),
-        
-        radioButtons("reps", 
-                    "Number of replicates per gene:",
-                    choices = c("3 replicates" = 3, "4 replicates" = 4),
-                    selected = 3,
-                    inline = TRUE),
-        
-        checkboxInput("remove_outliers", 
-                     "Remove outliers (for 4 replicates)", 
-                     value = TRUE),
-        
-        numericInput("outlier_threshold", 
-                    "Outlier detection threshold (SD):",
-                    value = 2.0, 
-                    min = 1.0, 
-                    max = 5.0, 
-                    step = 0.1),
-        
-        hr(),
-        
-        actionButton("analyze", 
-                    "🚀 Run Analysis", 
-                    class = "btn-primary btn-lg",
-                    style = "width: 100%; margin-bottom: 10px;"),
-        
-        actionButton("reset", 
-                    "🔄 Reset", 
-                    class = "btn-secondary",
-                    style = "width: 100%;"),
-        
-        hr(),
-        
-        conditionalPanel(
-          condition = "output.analysis_complete",
-          downloadButton("downloadData", 
-                        "📥 Download Results", 
-                        class = "btn-success",
-                        style = "width: 100%;")
-        )
-      )
-    ),
-    
-    mainPanel(
-      width = 9,
-      
-      tabsetPanel(
-        id = "main_tabs",
-        type = "tabs",
-        
-        # Instructions Tab
-        tabPanel(
-          "📖 Instructions",
-          wellPanel(
-            h3("How to Use This App", style = "color: #2c3e50;"),
-            
-            h4("📋 Data Format Requirements:"),
-            tags$ul(
-              tags$li("Upload CSV or Excel files containing your qPCR Ct values"),
-              tags$li("Data should be organized with genes in columns and samples in rows"),
-              tags$li("First gene should be your reference/control gene"),
-              tags$li("Missing values can be marked as 'Undetermined', '#VALUE!', or left blank"),
-              tags$li("Choose whether your file has column headers")
-            ),
-            
-            h4("⚙️ Analysis Options:"),
-            tags$ul(
-              tags$li("Select number of replicates per gene (3 or 4)"),
-              tags$li("For 4 replicates, optionally remove outliers automatically"),
-              tags$li("Adjust outlier detection sensitivity if needed")
-            ),
-            
-            h4("📊 Output Information:"),
-            tags$ul(
-              tags$li("Cleaned Ct values with outliers removed"),
-              tags$li("ΔCt values calculated using optimal replicate pairing"),
-              tags$li("Expression values (2^ΔCt)"),
-              tags$li("Relative expression compared to control"),
-              tags$li("Statistical summaries (mean ± SD)")
-            ),
-            
-            hr(),
-            
-            h4("💡 Tips:"),
-            tags$ul(
-              tags$li("Ensure your reference gene is in the first column"),
-              tags$li("Check the data preview before running analysis"),
-              tags$li("Review outlier detection results"),
-              tags$li("Download results for further analysis in other software")
-            )
-          )
-        ),
-        
-        # Data Preview Tab
-        tabPanel(
-          "👀 Data Preview",
-          wellPanel(
-            h3("Raw Data Preview", style = "color: #2c3e50;"),
-            
-            conditionalPanel(
-              condition = "!output.file_uploaded",
-              div(
-                class = "alert alert-info",
-                icon("info-circle"),
-                "Please upload a file to see the data preview."
-              )
-            ),
-            
-            conditionalPanel(
-              condition = "output.file_uploaded",
-              div(
-                style = "margin-bottom: 15px;",
-                verbatimTextOutput("file_info")
-              ),
-              
-              div(
-                style = "margin-bottom: 15px;",
-                h5("First 10 rows of data:"),
-                DTOutput("raw_data_table")
-              ),
-              
-              conditionalPanel(
-                condition = "output.has_outliers",
-                div(
-                  class = "alert alert-warning",
-                  icon("exclamation-triangle"),
-                  "Outliers detected in your data. Consider enabling outlier removal."
-                )
-              )
-            )
-          )
-        ),
-        
-        # Analysis Results Tab
-        tabPanel(
-          "📈 Analysis Results",
-          conditionalPanel(
-            condition = "!output.analysis_complete",
-            wellPanel(
-              div(
-                class = "alert alert-info",
-                icon("info-circle"),
-                "Click 'Run Analysis' to process your data and view results."
-              )
-            )
-          ),
-          
-          conditionalPanel(
-            condition = "output.analysis_complete",
-            
-            # Summary Statistics
-            wellPanel(
-              h3("📊 Summary Statistics", style = "color: #2c3e50;"),
-              
-              fluidRow(
-                column(6,
-                  h5("Expression Analysis:"),
-                  tableOutput("expr_summary_table")
-                ),
-                column(6,
-                  h5("Relative Expression Analysis:"),
-                  tableOutput("rel_summary_table")
-                )
-              )
-            ),
-            
-            # Detailed Results
-            wellPanel(
-              h3("🔍 Detailed Results", style = "color: #2c3e50;"),
-              
-              tabsetPanel(
-                type = "pills",
-                
-                tabPanel("Cleaned Ct Values",
-                  DTOutput("ct_table")
-                ),
-                
-                tabPanel("ΔCt Values",
-                  DTOutput("dct_table")
-                ),
-                
-                tabPanel("Expression Values",
-                  DTOutput("expr_table")
-                ),
-                
-                tabPanel("Relative Expression",
-                  DTOutput("rel_table")
-                )
-              )
-            ),
-            
-            # Visualizations
-            wellPanel(
-              h3("📊 Data Visualizations", style = "color: #2c3e50;"),
-              
-              fluidRow(
-                column(6,
-                  plotOutput("ct_boxplot", height = "300px")
-                ),
-                column(6,
-                  plotOutput("expr_boxplot", height = "300px")
-                )
-              ),
-              
-              fluidRow(
-                column(12,
-                  plotOutput("rel_heatmap", height = "400px")
-                )
-              )
-            )
-          )
-        ),
-        
-        # Quality Control Tab
-        tabPanel(
-          "🔬 Quality Control",
-          conditionalPanel(
-            condition = "!output.analysis_complete",
-            wellPanel(
-              div(
-                class = "alert alert-info",
-                icon("info-circle"),
-                "Run analysis to view quality control metrics."
-              )
-            )
-          ),
-          
-          conditionalPanel(
-            condition = "output.analysis_complete",
-            
-            wellPanel(
-              h3("Quality Control Metrics", style = "color: #2c3e50;"),
-              
-              fluidRow(
-                column(6,
-                  h5("Data Quality Summary:"),
-                  tableOutput("qc_summary")
-                ),
-                column(6,
-                  h5("Outlier Detection Results:"),
-                  tableOutput("outlier_summary")
-                )
-              ),
-              
-              hr(),
-              
-              h5("Replicate Variability (CV%):"),
-              plotOutput("cv_plot", height = "300px")
-            )
-          )
-        )
-      )
-    )
-  )
+ useShinyjs(),
+ tags$head(
+   tags$style(HTML(modern_css)),
+   tags$link(href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap", rel = "stylesheet"),
+   tags$script(HTML("
+     // Drag-to-select functionality for 96-well plate
+     $(document).ready(function() {
+       var isDragging = false;
+       var startX, startY;
+       var selectionRect = null;
+       var plateWrapper = null;
+       var dragStartedOnWell = false;
+       var dragDistance = 0;
+       var MIN_DRAG_DISTANCE = 10; // pixels
+
+       $(document).on('mousedown', '.plate-grid', function(e) {
+         e.preventDefault();
+         isDragging = true;
+         dragStartedOnWell = e.target.classList.contains('plate-well') || e.target.closest('.plate-well');
+         dragDistance = 0;
+         plateWrapper = document.getElementById('plate-wrapper');
+         selectionRect = document.getElementById('selection-rect');
+         var rect = plateWrapper.getBoundingClientRect();
+         startX = e.clientX - rect.left;
+         startY = e.clientY - rect.top;
+         selectionRect.style.left = startX + 'px';
+         selectionRect.style.top = startY + 'px';
+         selectionRect.style.width = '0px';
+         selectionRect.style.height = '0px';
+         });
+
+       $(document).on('mousemove', function(e) {
+         if (!isDragging || !plateWrapper) return;
+         var rect = plateWrapper.getBoundingClientRect();
+         var currentX = e.clientX - rect.left;
+         var currentY = e.clientY - rect.top;
+
+         var x = Math.min(startX, currentX);
+         var y = Math.min(startY, currentY);
+         var width = Math.abs(currentX - startX);
+         var height = Math.abs(currentY - startY);
+
+         // Track drag distance
+         dragDistance = Math.sqrt(width * width + height * height);
+
+         // Only show selection rect if dragged beyond threshold
+         if (dragDistance >= MIN_DRAG_DISTANCE) {
+           selectionRect.style.left = x + 'px';
+           selectionRect.style.top = y + 'px';
+           selectionRect.style.width = width + 'px';
+           selectionRect.style.height = height + 'px';
+           selectionRect.style.display = 'block';
+         }
+       });
+
+       $(document).on('mouseup', function(e) {
+         if (!isDragging) return;
+         isDragging = false;
+
+         if (!selectionRect || !plateWrapper) return;
+
+         // If drag was too short, treat as click on well (don't select)
+         if (dragDistance < MIN_DRAG_DISTANCE) {
+           selectionRect.style.display = 'none';
+           return;
+         }
+
+         var selRect = selectionRect.getBoundingClientRect();
+         selectionRect.style.display = 'none';
+
+         // Find wells FULLY CONTAINED within selection rectangle
+         var wells = plateWrapper.querySelectorAll('.plate-well:not(.empty)');
+         var selectedWells = [];
+
+         wells.forEach(function(well) {
+           var wellRect = well.getBoundingClientRect();
+           // Check if well is FULLY CONTAINED (not just touching)
+           if (wellRect.left >= selRect.left &&
+               wellRect.right <= selRect.right &&
+               wellRect.top >= selRect.top &&
+               wellRect.bottom <= selRect.bottom) {
+             var wellIndex = well.getAttribute('data-well');
+             if (wellIndex) selectedWells.push(parseInt(wellIndex));
+           }
+         });
+
+         if (selectedWells.length > 0) {
+           var isCtrl = e.ctrlKey || e.metaKey;
+           Shiny.setInputValue('plate_drag_select', {
+             wells: selectedWells,
+             ctrlKey: isCtrl,
+             time: Date.now()
+           });
+         }
+       });
+
+       // Tooltip functionality for wells
+       var tooltip = null;
+       
+       $(document).on('mouseenter', '.plate-well:not(.empty)', function(e) {
+         var well = $(this);
+         var wellData = well.data();
+         
+         if (!tooltip) {
+           tooltip = $('<div class="well-tooltip"></div>').appendTo('body');
+         }
+         
+         var wellName = wellData.wellname || '-';
+         var cellLine = wellData.cellline || '';
+         var condition = wellData.condition || '';
+         var treatment = wellData.treatment || '';
+         var ctValue = wellData.ctvalue || '-';
+         var isControl = wellData.iscontrol === 'true' || wellData.iscontrol === true;
+         
+         var html = '<div class="tooltip-title">Well ' + wellName + '</div>';
+         html += '<div class="tooltip-row"><span class="tooltip-label">Ct Value:</span><span class="tooltip-value">' + ctValue + '</span></div>';
+         html += '<div class="tooltip-row"><span class="tooltip-label">Cell Line:</span><span class="tooltip-value' + (cellLine ? '' : ' empty') + '">' + (cellLine || 'Not set') + '</span></div>';
+         html += '<div class="tooltip-row"><span class="tooltip-label">Condition:</span><span class="tooltip-value' + (condition ? '' : ' empty') + '">' + (condition || 'Not set') + '</span></div>';
+         html += '<div class="tooltip-row"><span class="tooltip-label">Treatment:</span><span class="tooltip-value' + (treatment ? '' : ' empty') + '">' + (treatment || 'Not set') + '</span></div>';
+         if (isControl) {
+           html += '<div class="tooltip-row"><span class="tooltip-label">Status:</span><span class="tooltip-value" style="color: #dc2626;">Control Group</span></div>';
+         }
+         
+         tooltip.html(html);
+         // Set initial position
+         var x = e.clientX + 15;
+         var y = e.clientY + 15;
+         tooltip.css({ left: x + 'px', top: y + 'px' });
+         tooltip.addClass('visible');
+       });
+       
+       $(document).on('mousemove', '.plate-well:not(.empty)', function(e) {
+         if (tooltip) {
+           var x = e.clientX + 15;
+           var y = e.clientY + 15;
+           
+           // Keep tooltip in viewport
+           var tooltipWidth = tooltip.outerWidth();
+           var tooltipHeight = tooltip.outerHeight();
+           if (x + tooltipWidth > window.innerWidth) x = e.clientX - tooltipWidth - 15;
+           if (y + tooltipHeight > window.innerHeight) y = e.clientY - tooltipHeight - 15;
+           
+           tooltip.css({ left: x + 'px', top: y + 'px' });
+         }
+       });
+       
+       $(document).on('mouseleave', '.plate-well', function() {
+         if (tooltip) {
+           tooltip.removeClass('visible');
+         }
+       });
+     });
+   "))
+ ),
+
+ # Header
+ div(class = "app-header",
+   h1(class = "app-title", "qPCR Cleaner & Analyzer"),
+   p(class = "app-subtitle", "Professional qPCR data processing with sample management")
+ ),
+
+ # Main Content
+ div(class = "main-content",
+   fluidRow(
+     # Sidebar
+     column(3,
+       div(class = "sidebar-card",
+         # File Upload
+         div(class = "sidebar-section",
+           div(class = "section-label", "1. Upload Data"),
+           fileInput("file", label = NULL,
+                    accept = c(".csv", ".xlsx", ".xls"),
+                    placeholder = "Choose file..."),
+           checkboxInput("has_header", "Has column headers", value = FALSE),
+           checkboxInput("skip_first_col", "First column is Sample ID", value = FALSE),
+           tags$small("Check if col 1 has sample IDs instead of Ct values",
+                     style = "color: var(--text-muted); display: block; margin-top: -0.5rem;")
+         ),
+
+         # Replicate Settings
+         div(class = "sidebar-section",
+           div(class = "section-label", "2. Settings"),
+           radioButtons("reps", "Replicates per gene:",
+                       choices = c("3" = 3, "4" = 4),
+                       selected = 3, inline = TRUE),
+           checkboxInput("remove_outliers", "Remove outliers (4 reps)", value = TRUE),
+           numericInput("outlier_threshold", "Outlier threshold (SD):",
+                       value = 2.0, min = 1.0, max = 5.0, step = 0.1)
+         ),
+
+         # Actions
+         div(class = "sidebar-section",
+           div(class = "section-label", "3. Analyze"),
+           actionButton("analyze", "Run Analysis",
+                       class = "btn-modern btn-primary-gradient",
+                       style = "margin-bottom: 0.5rem;"),
+           actionButton("reset", "Reset All",
+                       class = "btn-modern btn-outline"),
+           conditionalPanel(
+             condition = "output.analysis_complete",
+             div(style = "margin-top: 0.5rem;",
+               downloadButton("downloadData", "Download Results",
+                             class = "btn-modern btn-success-gradient")
+             )
+           )
+         )
+       )
+     ),
+
+     # Main Panel
+     column(9,
+       # Workflow indicator
+       div(class = "workflow-steps",
+         div(class = "workflow-step", id = "step1",
+           span(class = "step-number", "1"), "Upload"),
+         div(class = "workflow-step", id = "step2",
+           span(class = "step-number", "2"), "Sample Setup"),
+         div(class = "workflow-step", id = "step3",
+           span(class = "step-number", "3"), "Analyze"),
+         div(class = "workflow-step", id = "step4",
+           span(class = "step-number", "4"), "Results")
+       ),
+
+       tabsetPanel(
+         id = "main_tabs",
+         type = "tabs",
+
+         # ==================== SAMPLE SETUP TAB ====================
+         tabPanel(
+           title = "Sample Setup",
+           icon = icon("users"),
+           div(class = "modern-card", style = "margin-top: 1rem;",
+             div(class = "card-header",
+               div(class = "card-header-icon purple", HTML("&#9998;")),
+               h3(class = "card-title", "Sample Setup - Batch Editing")
+             ),
+             div(class = "card-body",
+
+               conditionalPanel(
+                 condition = "!output.file_uploaded",
+                 div(class = "alert-modern alert-info-modern",
+                   HTML("&#128193;"),
+                   div(tags$strong("Upload a file first"),
+                       tags$br(),
+                       "Upload your qPCR data using the sidebar to set up samples.")
+                 )
+               ),
+
+               conditionalPanel(
+                 condition = "output.file_uploaded",
+
+                 # Instructions
+                 div(class = "alert-modern alert-info-modern", style = "margin-bottom: 1rem;",
+                   HTML("&#128161;"),
+                   div(
+                     tags$strong("How to use:"), tags$br(),
+                     "1. Click wells on the plate OR select rows in the table below", tags$br(),
+                     "2. Enter Cell Line, Condition, or Treatment", tags$br(),
+                     "3. Click 'Apply' to assign to selected samples"
+                   )
+                 ),
+
+                 # 96-Well Plate Visualization
+                 div(class = "plate-container",
+                   div(class = "plate-title", HTML("&#127981;"), "96-Well Plate View"),
+
+                   # Plate selection buttons
+                   div(class = "plate-select-buttons",
+                     actionButton("plate_select_all", "All Wells", class = "btn-plate-select"),
+                     actionButton("plate_select_none", "Clear", class = "btn-plate-select"),
+                     tags$span("|", style = "color: var(--border-color); padding: 0 0.5rem;"),
+                     actionButton("plate_row_A", "Row A", class = "btn-plate-select"),
+                     actionButton("plate_row_B", "Row B", class = "btn-plate-select"),
+                     actionButton("plate_row_C", "Row C", class = "btn-plate-select"),
+                     actionButton("plate_row_D", "Row D", class = "btn-plate-select"),
+                     actionButton("plate_row_E", "Row E", class = "btn-plate-select"),
+                     actionButton("plate_row_F", "Row F", class = "btn-plate-select"),
+                     actionButton("plate_row_G", "Row G", class = "btn-plate-select"),
+                     actionButton("plate_row_H", "Row H", class = "btn-plate-select"),
+                     tags$span("|", style = "color: var(--border-color); padding: 0 0.5rem;"),
+                     actionButton("plate_col_1_6", "Col 1-6", class = "btn-plate-select"),
+                     actionButton("plate_col_7_12", "Col 7-12", class = "btn-plate-select")
+                   ),
+
+                   # The plate grid (generated dynamically)
+                   div(id = "plate-wrapper", style = "position: relative;",
+                     uiOutput("plate_ui"),
+                     div(id = "selection-rect", style = "display: none; position: absolute; border: 2px dashed var(--primary-color); background: rgba(102, 126, 234, 0.1); pointer-events: none; z-index: 100;")
+                   ),
+
+                   # Legend
+                   div(class = "plate-legend",
+                     div(class = "legend-item",
+                       div(class = "legend-dot selected"),
+                       span("Selected")
+                     ),
+                     div(class = "legend-item",
+                       div(class = "legend-dot cellline"),
+                       span("Cell Line")
+                     ),
+                     div(class = "legend-item",
+                       div(class = "legend-dot condition"),
+                       span("Condition")
+                     ),
+                     div(class = "legend-item",
+                       div(class = "legend-dot treatment"),
+                       span("Treatment")
+                     ),
+                     div(class = "legend-item",
+                       div(class = "legend-dot control"),
+                       span("Control")
+                     )
+                   )
+                 ),
+
+                 # Batch Edit Panel
+                 div(class = "batch-edit-panel",
+                   div(class = "batch-edit-title",
+                     HTML("&#9998;"), "Batch Edit Selected Samples"
+                   ),
+
+                   # Selection info
+                   uiOutput("selection_info"),
+
+                   # Row 1: Cell Line
+                   div(class = "batch-edit-row",
+                     div(class = "batch-input-group", style = "flex: 2;",
+                       tags$label("Cell Line"),
+                       textInput("batch_cellline", label = NULL,
+                                placeholder = "e.g., HeLa, MCF7, HEK293...")
+                     ),
+                     actionButton("apply_cellline", "Apply Cell Line",
+                                 class = "btn-apply")
+                   ),
+
+                   # Row 2: Condition
+                   div(class = "batch-edit-row",
+                     div(class = "batch-input-group", style = "flex: 2;",
+                       tags$label("Condition"),
+                       textInput("batch_condition", label = NULL,
+                                placeholder = "e.g., Control, Treatment, Knockdown...")
+                     ),
+                     actionButton("apply_condition", "Apply Condition",
+                                 class = "btn-apply btn-apply-success")
+                   ),
+
+                   # Row 3: Treatment
+                   div(class = "batch-edit-row",
+                     div(class = "batch-input-group", style = "flex: 2;",
+                       tags$label("Treatment"),
+                       textInput("batch_treatment", label = NULL,
+                                placeholder = "e.g., Drug A 10uM, siRNA, Vehicle...")
+                     ),
+                     actionButton("apply_treatment", "Apply Treatment",
+                                 class = "btn-apply btn-apply-warning")
+                   ),
+
+                   # Row 4: Control Group
+                   div(class = "batch-edit-row", style = "margin-top: 0.5rem; padding-top: 0.75rem; border-top: 1px dashed var(--border-color);",
+                     div(class = "batch-input-group", style = "flex: 2;",
+                       tags$label("Control Group (for relative expression)"),
+                       tags$small("Mark selected samples as the control/reference group",
+                                 style = "color: var(--text-muted); display: block;")
+                     ),
+                     actionButton("set_control", "Set as Control",
+                                 class = "btn-apply", style = "background: var(--danger-color);")
+                   ),
+
+                   # Apply All Fields Button
+                   div(class = "batch-edit-row", style = "margin-top: 1rem; padding-top: 0.75rem; border-top: 2px solid var(--primary-color);",
+                     div(class = "batch-input-group", style = "flex: 2;",
+                       tags$label("Apply All Fields", style = "color: var(--primary-color);"),
+                       tags$small("Apply all non-empty fields above to selected samples",
+                                 style = "color: var(--text-muted); display: block;")
+                     ),
+                     actionButton("apply_all", "Apply All",
+                                 class = "btn-apply", style = "background: var(--primary-color); font-weight: 700;")
+                   )
+                 ),
+
+                 # Quick Select Buttons
+                 div(style = "margin-bottom: 1rem;",
+                   tags$label("Quick Select:", style = "font-weight: 600; margin-right: 0.5rem; color: var(--text-secondary);"),
+                   div(class = "quick-select-panel", style = "display: inline-flex;",
+                     actionButton("select_all", "All", class = "btn-quick"),
+                     actionButton("select_none", "None", class = "btn-quick"),
+                     actionButton("select_odd", "Odd Rows", class = "btn-quick"),
+                     actionButton("select_even", "Even Rows", class = "btn-quick"),
+                     actionButton("select_first_half", "First Half", class = "btn-quick"),
+                     actionButton("select_second_half", "Second Half", class = "btn-quick")
+                   )
+                 ),
+
+                 # Sample Table
+                 div(class = "section-header",
+                   div(class = "section-header-icon", HTML("&#128203;")),
+                   h4(class = "section-header-text", "Sample Metadata Table")
+                 ),
+                 div(class = "sample-table-container",
+                   DTOutput("sample_table")
+                 ),
+
+                 # Clear metadata button
+                 div(style = "margin-top: 1rem; text-align: right;",
+                   actionButton("clear_metadata", "Clear All Metadata",
+                               class = "btn-modern btn-outline",
+                               style = "width: auto; padding: 0.5rem 1rem;")
+                 )
+               )
+             )
+           )
+         ),
+
+         # ==================== DATA PREVIEW TAB ====================
+         tabPanel(
+           title = "Data Preview",
+           icon = icon("table"),
+           div(class = "modern-card", style = "margin-top: 1rem;",
+             div(class = "card-header",
+               div(class = "card-header-icon teal", HTML("&#128203;")),
+               h3(class = "card-title", "Raw Ct Data Preview")
+             ),
+             div(class = "card-body",
+               conditionalPanel(
+                 condition = "!output.file_uploaded",
+                 div(class = "alert-modern alert-info-modern",
+                   HTML("&#128193;"),
+                   div(tags$strong("No file uploaded"),
+                       tags$br(), "Upload a CSV or Excel file to preview.")
+                 )
+               ),
+               conditionalPanel(
+                 condition = "output.file_uploaded",
+                 uiOutput("file_info_ui"),
+                 DTOutput("raw_data_table")
+               )
+             )
+           )
+         ),
+
+         # ==================== ANALYSIS RESULTS TAB ====================
+         tabPanel(
+           title = "Results",
+           icon = icon("chart-line"),
+
+           conditionalPanel(
+             condition = "!output.analysis_complete",
+             div(class = "modern-card", style = "margin-top: 1rem;",
+               div(class = "card-body",
+                 div(class = "alert-modern alert-info-modern",
+                   HTML("&#9654;"),
+                   div(tags$strong("Ready to Analyze"),
+                       tags$br(), "Set up your samples and click 'Run Analysis'.")
+                 )
+               )
+             )
+           ),
+
+           conditionalPanel(
+             condition = "output.analysis_complete",
+
+             # Summary
+             div(class = "modern-card", style = "margin-top: 1rem;",
+               div(class = "card-header",
+                 div(class = "card-header-icon green", HTML("&#128202;")),
+                 h3(class = "card-title", "Summary Statistics")
+               ),
+               div(class = "card-body",
+                 fluidRow(
+                   column(6, tableOutput("expr_summary_table")),
+                   column(6, tableOutput("rel_summary_table"))
+                 )
+               )
+             ),
+
+             # Detailed Results
+             div(class = "modern-card",
+               div(class = "card-header",
+                 div(class = "card-header-icon purple", HTML("&#128269;")),
+                 h3(class = "card-title", "Detailed Results")
+               ),
+               div(class = "card-body",
+                 tabsetPanel(
+                   type = "pills",
+                   tabPanel("Cleaned Ct", DTOutput("ct_table"), style = "padding-top: 1rem;"),
+                   tabPanel("ΔCt Values", DTOutput("dct_table"), style = "padding-top: 1rem;"),
+                   tabPanel("Expression", DTOutput("expr_table"), style = "padding-top: 1rem;"),
+                   tabPanel("Relative Expr.", DTOutput("rel_table"), style = "padding-top: 1rem;")
+                 )
+               )
+             ),
+
+             # Visualizations
+             div(class = "modern-card",
+               div(class = "card-header",
+                 div(class = "card-header-icon orange", HTML("&#128200;")),
+                 h3(class = "card-title", "Visualizations")
+               ),
+               div(class = "card-body",
+                 fluidRow(
+                   column(6, div(class = "plot-container", plotOutput("ct_boxplot", height = "300px"))),
+                   column(6, div(class = "plot-container", plotOutput("expr_boxplot", height = "300px")))
+                 ),
+                 fluidRow(style = "margin-top: 1rem;",
+                   column(12, div(class = "plot-container", plotOutput("rel_heatmap", height = "350px")))
+                 )
+               )
+             )
+           )
+         ),
+
+         # ==================== QC TAB ====================
+         tabPanel(
+           title = "Quality Control",
+           icon = icon("microscope"),
+
+           conditionalPanel(
+             condition = "!output.analysis_complete",
+             div(class = "modern-card", style = "margin-top: 1rem;",
+               div(class = "card-body",
+                 div(class = "alert-modern alert-info-modern",
+                   HTML("&#128300;"),
+                   div(tags$strong("QC Pending"), tags$br(), "Run analysis to view QC metrics.")
+                 )
+               )
+             )
+           ),
+
+           conditionalPanel(
+             condition = "output.analysis_complete",
+             div(class = "modern-card", style = "margin-top: 1rem;",
+               div(class = "card-header",
+                 div(class = "card-header-icon teal", HTML("&#128300;")),
+                 h3(class = "card-title", "Quality Control Metrics")
+               ),
+               div(class = "card-body",
+                 fluidRow(
+                   column(6, tableOutput("qc_summary")),
+                   column(6, tableOutput("outlier_summary"))
+                 ),
+                 hr(),
+                 div(class = "plot-container",
+                   plotOutput("cv_plot", height = "300px")
+                 )
+               )
+             )
+           )
+         )
+       )
+     )
+   )
+ )
 )
 
 server <- function(input, output, session) {
-  
-  # Reactive values to store data
-  rv <- reactiveValues(
-    raw_data = NULL,
-    cleaned_data = NULL,
-    dct_data = NULL,
-    expr_data = NULL,
-    rel_data = NULL,
-    csv_data = NULL,
-    analysis_complete = FALSE,
-    file_uploaded = FALSE,
-    has_outliers = FALSE,
-    qc_metrics = NULL,
-    outlier_info = NULL
-  )
-  
-  # File upload observer
-  observeEvent(input$file, {
-    req(input$file)
-    
-    tryCatch({
-      file_path <- input$file$datapath
-      file_name <- input$file$name
-      
-      # Read file based on extension
-      if (grepl("\\.xlsx?$", file_name, ignore.case = TRUE)) {
-        raw <- read_excel(file_path,
-                          col_names = input$has_header,
-                          na = c("Undetermined", "#VALUE!", "NA", ""))
-      } else {
-        raw <- read.csv(file_path,
-                        header = input$has_header,
-                        stringsAsFactors = FALSE,
-                        na.strings = c("Undetermined", "#VALUE!", "NA", ""))
-      }
-      
-      # Clean data
-      raw <- raw[, colSums(is.na(raw)) < nrow(raw), drop = FALSE]
-      raw <- raw[rowSums(is.na(raw)) < ncol(raw), , drop = FALSE]
-      
-      if (ncol(raw) == 0 || nrow(raw) == 0) {
-        showNotification("Uploaded file has no usable data after cleaning.", type = "error")
-        rv$file_uploaded <- FALSE
-        return()
-      }
-      
-      # Convert to numeric
-      raw_numeric <- as.data.frame(lapply(raw, function(x) {
-        if (is.numeric(x)) x else as.numeric(as.character(x))
-      }))
-      
-      rv$raw_data <- raw_numeric
-      rv$file_uploaded <- TRUE
-      rv$analysis_complete <- FALSE
-      
-      # Check for outliers
-      rv$has_outliers <- check_for_outliers(raw_numeric, input$reps)
-      
-      showNotification("File uploaded successfully!", type = "success")
-      
-    }, error = function(e) {
-      showNotification(paste("Error reading file:", e$message), type = "error")
-      rv$file_uploaded <- FALSE
-    })
-  })
-  
-  # Analysis button observer
-  observeEvent(input$analyze, {
-    req(rv$raw_data, input$file)
-    
-    withProgress(message = "Analyzing data...", value = 0, {
-      
-      tryCatch({
-        
-        incProgress(0.1, detail = "Cleaning data...")
-        
-        # Step 1: Clean data and remove outliers
-        cleaned <- clean_data(rv$raw_data, input$reps, input$remove_outliers, input$outlier_threshold)
-        rv$cleaned_data <- cleaned$data
-        rv$outlier_info <- cleaned$outlier_info
-        
-        incProgress(0.3, detail = "Computing ΔCt values...")
-        
-        # Step 2: Compute ΔCt
-        dct_result <- compute_dct(rv$cleaned_data, input$reps)
-        rv$dct_data <- dct_result$dct_data
-        
-        incProgress(0.5, detail = "Computing expression values...")
-        
-        # Step 3: Compute expression values
-        rv$expr_data <- 2 ^ rv$dct_data
-        
-        incProgress(0.7, detail = "Computing relative expression...")
-        
-        # Step 4: Compute relative expression
-        rv$rel_data <- compute_relative_expression(rv$expr_data, input$reps)
-        
-        incProgress(0.9, detail = "Preparing output...")
-        
-        # Step 5: Prepare CSV output
-        rv$csv_data <- prepare_csv_output(rv$cleaned_data, rv$dct_data, rv$expr_data, rv$rel_data, input$reps)
-        
-        # Step 6: Calculate QC metrics
-        rv$qc_metrics <- calculate_qc_metrics(rv$cleaned_data, rv$expr_data, rv$rel_data, input$reps)
-        
-        rv$analysis_complete <- TRUE
-        
-        incProgress(1, detail = "Analysis complete!")
-        
-        showNotification("Analysis completed successfully!", type = "success")
-        
-        # Switch to results tab
-        updateTabsetPanel(session, "main_tabs", selected = "📈 Analysis Results")
-        
-      }, error = function(e) {
-        showNotification(paste("Analysis error:", e$message), type = "error")
-      })
-    })
-  })
-  
-  # Reset button observer
-  observeEvent(input$reset, {
-    rv$raw_data <- NULL
-    rv$cleaned_data <- NULL
-    rv$dct_data <- NULL
-    rv$expr_data <- NULL
-    rv$rel_data <- NULL
-    rv$csv_data <- NULL
-    rv$analysis_complete <- FALSE
-    rv$file_uploaded <- FALSE
-    rv$has_outliers <- FALSE
-    rv$qc_metrics <- NULL
-    rv$outlier_info <- NULL
-    
-    reset("file")
-    updateTabsetPanel(session, "main_tabs", selected = "📖 Instructions")
-    
-    showNotification("App reset successfully!", type = "info")
-  })
-  
-  # Output functions
-  output$file_uploaded <- reactive(rv$file_uploaded)
-  output$analysis_complete <- reactive(rv$analysis_complete)
-  output$has_outliers <- reactive(rv$has_outliers)
-  
-  output$file_info <- renderText({
-    req(rv$raw_data)
-    paste("File loaded successfully!\n",
-          "Rows:", nrow(rv$raw_data), "\n",
-          "Columns:", ncol(rv$raw_data), "\n",
-          "Estimated genes:", floor(ncol(rv$raw_data) / input$reps))
-  })
-  
-  output$raw_data_table <- renderDT({
-    req(rv$raw_data)
-    datatable(
-      head(rv$raw_data, 10),
-      options = list(
-        pageLength = 5,
-        scrollX = TRUE,
-        dom = 't'
-      ),
-      rownames = FALSE
-    )
-  })
-  
-  output$ct_table <- renderDT({
-    req(rv$cleaned_data)
-    datatable(
-      round(rv$cleaned_data, 3),
-      options = list(
-        pageLength = 10,
-        scrollX = TRUE
-      ),
-      caption = "Cleaned Ct Values (outliers removed)"
-    )
-  })
-  
-  output$dct_table <- renderDT({
-    req(rv$dct_data)
-    datatable(
-      round(rv$dct_data, 3),
-      options = list(
-        pageLength = 10,
-        scrollX = TRUE
-      ),
-      caption = "ΔCt Values"
-    )
-  })
-  
-  output$expr_table <- renderDT({
-    req(rv$expr_data)
-    datatable(
-      round(rv$expr_data, 6),
-      options = list(
-        pageLength = 10,
-        scrollX = TRUE
-      ),
-      caption = "Expression Values (2^ΔCt)"
-    )
-  })
-  
-  output$rel_table <- renderDT({
-    req(rv$rel_data)
-    datatable(
-      round(rv$rel_data, 6),
-      options = list(
-        pageLength = 10,
-        scrollX = TRUE
-      ),
-      caption = "Relative Expression vs. Control"
-    )
-  })
-  
-  output$expr_summary_table <- renderTable({
-    req(rv$qc_metrics)
-    rv$qc_metrics$expr_summary
-  }, rownames = TRUE, digits = 6)
-  
-  output$rel_summary_table <- renderTable({
-    req(rv$qc_metrics)
-    rv$qc_metrics$rel_summary
-  }, rownames = TRUE, digits = 6)
-  
-  output$qc_summary <- renderTable({
-    req(rv$qc_metrics)
-    rv$qc_metrics$qc_summary
-  }, rownames = FALSE, digits = 3)
-  
-  output$outlier_summary <- renderTable({
-    req(rv$outlier_info)
-    rv$outlier_info
-  }, rownames = FALSE, digits = 0)
-  
-  # Plots
-  output$ct_boxplot <- renderPlot({
-    req(rv$cleaned_data)
-    plot_ct_boxplot(rv$cleaned_data, input$reps)
-  })
-  
-  output$expr_boxplot <- renderPlot({
-    req(rv$expr_data)
-    plot_expr_boxplot(rv$expr_data, input$reps)
-  })
-  
-  output$rel_heatmap <- renderPlot({
-    req(rv$rel_data)
-    plot_rel_heatmap(rv$rel_data, input$reps)
-  })
-  
-  output$cv_plot <- renderPlot({
-    req(rv$qc_metrics)
-    plot_cv_plot(rv$qc_metrics$cv_data, input$reps)
-  })
-  
-  # Download handler
-  output$downloadData <- downloadHandler(
-    filename = function() {
-      paste0("qpcr_analysis_", format(Sys.Date(), "%Y%m%d"), ".csv")
-    },
-    content = function(file) {
-      write.table(rv$csv_data,
-                  file = file,
-                  sep = ",",
-                  col.names = FALSE,
-                  row.names = FALSE,
-                  quote = FALSE,
-                  na = "")
-    }
-  )
-  
-  # Helper functions
-  check_for_outliers <- function(data, reps) {
-    if (reps != 4) return(FALSE)
-    
-    n_genes <- ncol(data) / reps
-    has_outliers <- FALSE
-    
-    for (g in 1:n_genes) {
-      start_col <- (g - 1) * reps + 1
-      end_col <- g * reps
-      
-      for (row in 1:nrow(data)) {
-        block <- as.numeric(data[row, start_col:end_col])
-        if (sum(!is.na(block)) >= 3) {
-          mean_val <- mean(block, na.rm = TRUE)
-          sd_val <- sd(block, na.rm = TRUE)
-          if (any(abs(block - mean_val) > 2 * sd_val, na.rm = TRUE)) {
-            has_outliers <- TRUE
-            break
-          }
-        }
-      }
-      if (has_outliers) break
-    }
-    
-    return(has_outliers)
-  }
-  
-  clean_data <- function(raw_data, reps, remove_outliers, threshold) {
-    cleaned <- raw_data
-    outlier_info <- data.frame(
-      Gene = character(),
-      Sample = integer(),
-      Outliers_Removed = integer(),
-      stringsAsFactors = FALSE
-    )
-    
-    if (remove_outliers && reps == 4) {
-      n_genes <- ncol(raw_data) / reps
-      
-      for (g in 1:n_genes) {
-        start_col <- (g - 1) * reps + 1
-        end_col <- g * reps
-        
-        for (row in 1:nrow(raw_data)) {
-          block <- as.numeric(raw_data[row, start_col:end_col])
-          
-          if (sum(!is.na(block)) >= 3) {
-            mean_val <- mean(block, na.rm = TRUE)
-            sd_val <- sd(block, na.rm = TRUE)
-            
-            outliers <- which(abs(block - mean_val) > threshold * sd_val)
-            
-            if (length(outliers) > 0 && length(outliers) < length(block)) {
-              # Remove the most extreme outlier
-              extreme_outlier <- outliers[which.max(abs(block[outliers] - mean_val))]
-              cleaned[row, start_col + extreme_outlier - 1] <- NA
-              
-              outlier_info <- rbind(outlier_info, data.frame(
-                Gene = paste0("Gene", g),
-                Sample = row,
-                Outliers_Removed = 1,
-                stringsAsFactors = FALSE
-              ))
-            }
-          }
-        }
-      }
-    }
-    
-    return(list(data = cleaned, outlier_info = outlier_info))
-  }
-  
-  compute_dct <- function(cleaned_data, reps) {
-    n_reps <- reps
-    n_genes <- ncol(cleaned_data) / n_reps
-    
-    gene_indices <- lapply(0:(n_genes-1), function(i) {
-      start <- i * n_reps + 1
-      end <- start + n_reps - 1
-      start:end
-    })
-    
-    compute_dCt_optimal <- function(control_vals, target_vals) {
-      if (all(is.na(control_vals)) || all(is.na(target_vals))) {
-        return(rep(NA, length(target_vals)))
-      }
-      
-      # Simple pairing if not enough data for permutations
-      if (sum(!is.na(target_vals)) < 2) {
-        dCt <- control_vals - target_vals
-        dCt[is.na(control_vals) | is.na(target_vals)] <- NA
-        return(dCt)
-      }
-      
-      # Try permutations for optimal pairing
-      tryCatch({
-        perms <- permutations(n = length(target_vals),
-                             r = length(target_vals),
-                             v = target_vals)
-        
-        best_dCt <- NULL
-        min_sd <- Inf
-        
-        for (i in 1:nrow(perms)) {
-          pair <- perms[i, ]
-          dCt <- control_vals - pair
-          dCt[is.na(control_vals) | is.na(pair)] <- NA
-          
-          if (sum(!is.na(dCt)) >= 2) {
-            current_sd <- sd(dCt, na.rm = TRUE)
-            if (current_sd < min_sd) {
-              min_sd <- current_sd
-              best_dCt <- dCt
-            }
-          }
-        }
-        
-        if (!is.null(best_dCt)) {
-          return(best_dCt)
-        }
-      }, error = function(e) {
-        # Fall back to simple pairing
-      })
-      
-      # Fallback: simple pairing
-      dCt <- control_vals - target_vals
-      dCt[is.na(control_vals) | is.na(target_vals)] <- NA
-      return(dCt)
-    }
-    
-    dCt_all <- list()
-    
-    for (row in 1:nrow(cleaned_data)) {
-      row_vals <- as.numeric(cleaned_data[row, ])
-      ref_vals <- row_vals[gene_indices[[1]]]
-      dCt_row <- c()
-      
-      for (g in 2:n_genes) {
-        target_vals <- row_vals[gene_indices[[g]]]
-        dCt_vals <- compute_dCt_optimal(ref_vals, target_vals)
-        dCt_row <- c(dCt_row, dCt_vals)
-      }
-      
-      dCt_row <- c(rep(NA, n_reps), dCt_row)
-      dCt_all[[row]] <- dCt_row
-    }
-    
-    dCt_df <- as.data.frame(do.call(rbind, dCt_all))
-    
-    return(list(dct_data = dCt_df))
-  }
-  
-  compute_relative_expression <- function(expr_data, reps) {
-    control_expr <- as.numeric(expr_data[1, ])
-    
-    compute_relative_optimal <- function(control_vals, treat_vals) {
-      if (all(is.na(control_vals)) || all(is.na(treat_vals))) {
-        return(rep(NA, length(treat_vals)))
-      }
-      
-      # Simple division if not enough data
-      if (sum(!is.na(treat_vals)) < 2) {
-        rel_vals <- treat_vals / control_vals
-        rel_vals[is.na(treat_vals) | is.na(control_vals)] <- NA
-        return(rel_vals)
-      }
-      
-      # Try permutations for optimal pairing
-      tryCatch({
-        perms <- permutations(n = length(control_vals),
-                             r = length(control_vals),
-                             v = control_vals)
-        
-        best_rel <- NULL
-        min_sd <- Inf
-        
-        for (i in 1:nrow(perms)) {
-          perm_ctrl <- perms[i, ]
-          rel_vals <- treat_vals / perm_ctrl
-          rel_vals[is.na(treat_vals) | is.na(perm_ctrl)] <- NA
-          
-          if (sum(!is.na(rel_vals)) >= 2) {
-            sd_val <- sd(rel_vals, na.rm = TRUE)
-            if (sd_val < min_sd) {
-              min_sd <- sd_val
-              best_rel <- rel_vals
-            }
-          }
-        }
-        
-        if (!is.null(best_rel)) {
-          return(best_rel)
-        }
-      }, error = function(e) {
-        # Fall back to simple division
-      })
-      
-      # Fallback: simple division
-      rel_vals <- treat_vals / control_vals
-      rel_vals[is.na(treat_vals) | is.na(control_vals)] <- NA
-      return(rel_vals)
-    }
-    
-    rel_all <- list()
-    
-    for (row in 1:nrow(expr_data)) {
-      if (row == 1) {
-        rel_all[[row]] <- rep(1, ncol(expr_data))
-      } else {
-        treat_vals <- as.numeric(expr_data[row, ])
-        rel_vals <- compute_relative_optimal(control_expr, treat_vals)
-        rel_all[[row]] <- rel_vals
-      }
-    }
-    
-    rel_df <- as.data.frame(do.call(rbind, rel_all))
-    return(rel_df)
-  }
-  
-  calculate_qc_metrics <- function(cleaned_data, expr_data, rel_data, reps) {
-    n_genes <- ncol(cleaned_data) / reps
-    
-    # Calculate means and SDs
-    calc_summary <- function(data, n_reps) {
-      means <- list()
-      sds <- list()
-      cvs <- list()
-      
-      for (g in 1:n_genes) {
-        start_col <- (g - 1) * n_reps + 1
-        end_col <- g * n_reps
-        
-        block_means <- apply(data[, start_col:end_col], 1, function(x) {
-          if (all(is.na(x))) NA else mean(x, na.rm = TRUE)
-        })
-        
-        block_sds <- apply(data[, start_col:end_col], 1, function(x) {
-          if (all(is.na(x))) NA else sd(x, na.rm = TRUE)
-        })
-        
-        block_cvs <- block_sds / block_means * 100
-        
-        means[[g]] <- block_means
-        sds[[g]] <- block_sds
-        cvs[[g]] <- block_cvs
-      }
-      
-      return(list(
-        means = do.call(cbind, means),
-        sds = do.call(cbind, sds),
-        cvs = do.call(cbind, cvs)
-      ))
-    }
-    
-    expr_summary <- calc_summary(expr_data, reps)
-    rel_summary <- calc_summary(rel_data, reps)
-    
-    # Create summary tables
-    expr_summary_table <- data.frame(
-      Gene = paste0("Gene", 1:n_genes),
-      Mean = colMeans(expr_summary$means, na.rm = TRUE),
-      SD = colMeans(expr_summary$sds, na.rm = TRUE),
-      CV_percent = colMeans(expr_summary$cvs, na.rm = TRUE)
-    )
-    
-    rel_summary_table <- data.frame(
-      Gene = paste0("Gene", 1:n_genes),
-      Mean = colMeans(rel_summary$means, na.rm = TRUE),
-      SD = colMeans(rel_summary$sds, na.rm = TRUE),
-      CV_percent = colMeans(rel_summary$cvs, na.rm = TRUE)
-    )
-    
-    # QC summary
-    qc_summary <- data.frame(
-      Metric = c("Total Samples", "Total Genes", "Missing Values (%)", "Mean CV (%)"),
-      Value = c(
-        nrow(cleaned_data),
-        n_genes,
-        round(sum(is.na(cleaned_data)) / length(as.matrix(cleaned_data)) * 100, 1),
-        round(mean(colMeans(expr_summary$cvs, na.rm = TRUE), na.rm = TRUE), 1)
-      )
-    )
-    
-    return(list(
-      expr_summary = expr_summary_table,
-      rel_summary = rel_summary_table,
-      qc_summary = qc_summary,
-      cv_data = expr_summary$cvs
-    ))
-  }
-  
-  prepare_csv_output <- function(cleaned_data, dct_data, expr_data, rel_data, reps) {
-    # This function prepares the comprehensive CSV output
-    # Implementation similar to the original but with better formatting
-    
-    round_data_frame <- function(df, digits = 6) {
-      if (is.null(df) || !is.data.frame(df) || nrow(df) == 0) {
-        return(data.frame())
-      }
-      df[] <- lapply(df, function(x) {
-        if (is.numeric(x)) round(x, digits) else x
-      })
-      return(df)
-    }
-    
-    clean_csv_block <- function(df) {
-      if (is.null(df) || !is.data.frame(df) || nrow(df) == 0) {
-        return(matrix("", nrow = 1, ncol = 1))
-      }
-      mat <- as.matrix(df)
-      mat[is.na(mat)] <- "#VALUE!"
-      return(apply(mat, c(1,2), as.character))
-    }
-    
-    # Prepare all data blocks
-    ct_block <- clean_csv_block(round_data_frame(cleaned_data))
-    dct_block <- clean_csv_block(round_data_frame(dct_data))
-    expr_block <- clean_csv_block(round_data_frame(expr_data))
-    rel_block <- clean_csv_block(round_data_frame(rel_data))
-    
-    # Calculate summaries
-    n_genes <- ncol(cleaned_data) / reps
-    
-    calc_summary <- function(data, n_reps) {
-      means <- list()
-      sds <- list()
-      
-      for (g in 1:n_genes) {
-        start_col <- (g - 1) * n_reps + 1
-        end_col <- g * n_reps
-        
-        block_means <- apply(data[, start_col:end_col], 1, function(x) {
-          if (all(is.na(x))) NA else mean(x, na.rm = TRUE)
-        })
-        
-        block_sds <- apply(data[, start_col:end_col], 1, function(x) {
-          if (all(is.na(x))) NA else sd(x, na.rm = TRUE)
-        })
-        
-        means[[g]] <- block_means
-        sds[[g]] <- block_sds
-      }
-      
-      return(list(
-        means = do.call(cbind, means),
-        sds = do.call(cbind, sds)
-      ))
-    }
-    
-    expr_summary <- calc_summary(expr_data, reps)
-    rel_summary <- calc_summary(rel_data, reps)
-    
-    expr_mean_block <- clean_csv_block(round_data_frame(expr_summary$means))
-    expr_sd_block <- clean_csv_block(round_data_frame(expr_summary$sds))
-    rel_mean_block <- clean_csv_block(round_data_frame(rel_summary$means))
-    rel_sd_block <- clean_csv_block(round_data_frame(rel_summary$sds))
-    
-    # Combine all blocks
-    max_cols <- max(
-      ncol(ct_block), ncol(dct_block), ncol(expr_block), ncol(rel_block),
-      ncol(expr_mean_block), ncol(expr_sd_block), ncol(rel_mean_block), ncol(rel_sd_block),
-      na.rm = TRUE
-    )
-    
-    pad_block <- function(block, target_cols) {
-      if (ncol(block) < target_cols) {
-        extra_cols <- target_cols - ncol(block)
-        block <- cbind(block, matrix("", nrow = nrow(block), ncol = extra_cols))
-      }
-      return(block)
-    }
-    
-    ct_block <- pad_block(ct_block, max_cols)
-    dct_block <- pad_block(dct_block, max_cols)
-    expr_block <- pad_block(expr_block, max_cols)
-    rel_block <- pad_block(rel_block, max_cols)
-    expr_mean_block <- pad_block(expr_mean_block, max_cols)
-    expr_sd_block <- pad_block(expr_sd_block, max_cols)
-    rel_mean_block <- pad_block(rel_mean_block, max_cols)
-    rel_sd_block <- pad_block(rel_sd_block, max_cols)
-    
-    # Create titles
-    title_ct <- matrix(c("### Cleaned Ct Data ###", rep("", max_cols - 1)), nrow = 1)
-    title_dct <- matrix(c("### ΔCt Values ###", rep("", max_cols - 1)), nrow = 1)
-    title_expr <- matrix(c("### Expression Values (2^ΔCt) ###", rep("", max_cols - 1)), nrow = 1)
-    title_expr_mean <- matrix(c("### Expression Means ###", rep("", max_cols - 1)), nrow = 1)
-    title_expr_sd <- matrix(c("### Expression SDs ###", rep("", max_cols - 1)), nrow = 1)
-    title_rel <- matrix(c("### Relative Expression vs. Control ###", rep("", max_cols - 1)), nrow = 1)
-    title_rel_mean <- matrix(c("### Relative Expression Means ###", rep("", max_cols - 1)), nrow = 1)
-    title_rel_sd <- matrix(c("### Relative Expression SDs ###", rep("", max_cols - 1)), nrow = 1)
-    
-    blank_row <- matrix("", nrow = 1, ncol = max_cols)
-    
-    final_csv <- rbind(
-      title_ct, ct_block, blank_row,
-      title_dct, dct_block, blank_row,
-      title_expr, expr_block, blank_row,
-      title_expr_mean, expr_mean_block, blank_row,
-      title_expr_sd, expr_sd_block, blank_row,
-      title_rel, rel_block, blank_row,
-      title_rel_mean, rel_mean_block, blank_row,
-      title_rel_sd, rel_sd_block
-    )
-    
-    return(final_csv)
-  }
-  
-  # Plotting functions
-  plot_ct_boxplot <- function(cleaned_data, reps) {
-    n_genes <- ncol(cleaned_data) / reps
-    
-    plot_data <- data.frame()
-    for (g in 1:n_genes) {
-      start_col <- (g - 1) * reps + 1
-      end_col <- g * reps
-      
-      for (row in 1:nrow(cleaned_data)) {
-        values <- as.numeric(cleaned_data[row, start_col:end_col])
-        plot_data <- rbind(plot_data, data.frame(
-          Gene = paste0("Gene", g),
-          Sample = paste0("Sample", row),
-          Ct_Value = values
-        ))
-      }
-    }
-    
-    plot_data <- plot_data[!is.na(plot_data$Ct_Value), ]
-    
-    ggplot(plot_data, aes(x = Gene, y = Ct_Value, fill = Gene)) +
-      geom_boxplot(alpha = 0.7) +
-      geom_jitter(width = 0.2, alpha = 0.5) +
-      labs(title = "Ct Values Distribution by Gene",
-           x = "Gene", y = "Ct Value") +
-      theme_minimal() +
-      theme(legend.position = "none",
-            axis.text.x = element_text(angle = 45, hjust = 1))
-  }
-  
-  plot_expr_boxplot <- function(expr_data, reps) {
-    n_genes <- ncol(expr_data) / reps
-    
-    plot_data <- data.frame()
-    for (g in 1:n_genes) {
-      start_col <- (g - 1) * reps + 1
-      end_col <- g * reps
-      
-      for (row in 1:nrow(expr_data)) {
-        values <- as.numeric(expr_data[row, start_col:end_col])
-        plot_data <- rbind(plot_data, data.frame(
-          Gene = paste0("Gene", g),
-          Sample = paste0("Sample", row),
-          Expression = values
-        ))
-      }
-    }
-    
-    plot_data <- plot_data[!is.na(plot_data$Expression), ]
-    
-    ggplot(plot_data, aes(x = Gene, y = Expression, fill = Gene)) +
-      geom_boxplot(alpha = 0.7) +
-      geom_jitter(width = 0.2, alpha = 0.5) +
-      labs(title = "Expression Values Distribution",
-           x = "Gene", y = "Expression (2^ΔCt)") +
-      theme_minimal() +
-      theme(legend.position = "none",
-            axis.text.x = element_text(angle = 45, hjust = 1))
-  }
-  
-  plot_rel_heatmap <- function(rel_data, reps) {
-    n_genes <- ncol(rel_data) / reps
-    
-    # Calculate mean relative expression for each gene
-    mean_rel <- data.frame()
-    for (g in 1:n_genes) {
-      start_col <- (g - 1) * reps + 1
-      end_col <- g * reps
-      
-      for (row in 1:nrow(rel_data)) {
-        values <- as.numeric(rel_data[row, start_col:end_col])
-        mean_val <- mean(values, na.rm = TRUE)
-        if (!is.na(mean_val)) {
-          mean_rel <- rbind(mean_rel, data.frame(
-            Gene = paste0("Gene", g),
-            Sample = paste0("Sample", row),
-            Relative_Expression = mean_val
-          ))
-        }
-      }
-    }
-    
-    ggplot(mean_rel, aes(x = Gene, y = Sample, fill = Relative_Expression)) +
-      geom_tile() +
-      scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-                          midpoint = 1, limits = c(0, 2)) +
-      labs(title = "Relative Expression Heatmap",
-           x = "Gene", y = "Sample", fill = "Relative Expression") +
-      theme_minimal() +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  }
-  
-  plot_cv_plot <- function(cv_data, reps) {
-    n_genes <- ncol(cv_data)
-    
-    plot_data <- data.frame()
-    for (g in 1:n_genes) {
-      values <- cv_data[, g]
-      plot_data <- rbind(plot_data, data.frame(
-        Gene = paste0("Gene", g),
-        CV_percent = values
-      ))
-    }
-    
-    plot_data <- plot_data[!is.na(plot_data$CV_percent), ]
-    
-    ggplot(plot_data, aes(x = Gene, y = CV_percent, fill = Gene)) +
-      geom_boxplot(alpha = 0.7) +
-      geom_hline(yintercept = 20, linetype = "dashed", color = "red", alpha = 0.7) +
-      labs(title = "Coefficient of Variation (CV%) by Gene",
-           x = "Gene", y = "CV (%)",
-           caption = "Red dashed line indicates 20% CV threshold") +
-      theme_minimal() +
-      theme(legend.position = "none",
-            axis.text.x = element_text(angle = 45, hjust = 1))
-  }
+
+ # ==================== REACTIVE VALUES ====================
+ rv <- reactiveValues(
+   raw_data = NULL,
+   sample_metadata = NULL,
+   selected_rows = c(),
+   last_clicked_well = NULL,
+   cleaned_data = NULL,
+   dct_data = NULL,
+   expr_data = NULL,
+   rel_data = NULL,
+   csv_data = NULL,
+   analysis_complete = FALSE,
+   file_uploaded = FALSE,
+   qc_metrics = NULL,
+   outlier_info = NULL
+ )
+
+ # ==================== FILE UPLOAD ====================
+ observeEvent(input$file, {
+   req(input$file)
+
+   tryCatch({
+     file_path <- input$file$datapath
+     file_name <- input$file$name
+
+     if (grepl("\\.xlsx?$", file_name, ignore.case = TRUE)) {
+       raw <- read_excel(file_path, col_names = input$has_header,
+                        na = c("Undetermined", "#VALUE!", "NA", ""))
+     } else {
+       raw <- read.csv(file_path, header = input$has_header,
+                      stringsAsFactors = FALSE,
+                      na.strings = c("Undetermined", "#VALUE!", "NA", ""))
+     }
+
+     raw <- raw[, colSums(is.na(raw)) < nrow(raw), drop = FALSE]
+     raw <- raw[rowSums(is.na(raw)) < ncol(raw), , drop = FALSE]
+
+     if (ncol(raw) == 0 || nrow(raw) == 0) {
+       showNotification("No usable data found.", type = "error")
+       return()
+     }
+
+     raw_numeric <- as.data.frame(lapply(raw, function(x) {
+       if (is.numeric(x)) x else as.numeric(as.character(x))
+     }))
+
+     # Skip first column if user checked "First column is Sample ID"
+     # or if auto-detected as sequential sample IDs
+     skip_col1 <- FALSE
+     
+     if (isTRUE(input$skip_first_col)) {
+       # User explicitly said first column is Sample ID
+       skip_col1 <- TRUE
+     } else if (ncol(raw_numeric) > 1) {
+       # Auto-detect: check if first column looks like sample IDs (1, 2, 3...)
+       first_col <- raw_numeric[[1]]
+       is_all_valid <- !any(is.na(first_col))
+       is_integer <- all(first_col == floor(first_col), na.rm = TRUE)
+       is_sequential <- length(first_col) > 1 && 
+                       all(diff(first_col) == 1, na.rm = TRUE) && 
+                       first_col[1] %in% c(0, 1)
+       if (is_all_valid && is_integer && is_sequential) {
+         skip_col1 <- TRUE
+         showNotification("Auto-detected Sample ID column. Skipping column 1.", 
+                         type = "message", duration = 4)
+       }
+     }
+     
+     if (skip_col1 && ncol(raw_numeric) > 1) {
+       raw_numeric <- raw_numeric[, -1, drop = FALSE]
+     }
+
+     rv$raw_data <- raw_numeric
+     rv$file_uploaded <- TRUE
+     rv$analysis_complete <- FALSE
+
+     # Initialize sample metadata
+     rv$sample_metadata <- data.frame(
+       Sample = 1:nrow(raw_numeric),
+       Cell_Line = rep("", nrow(raw_numeric)),
+       Condition = rep("", nrow(raw_numeric)),
+       Treatment = rep("", nrow(raw_numeric)),
+       Is_Control = rep(FALSE, nrow(raw_numeric)),
+       stringsAsFactors = FALSE
+     )
+
+     rv$selected_rows <- c()
+
+     showNotification("File uploaded! Now set up your samples.", type = "message")
+     updateTabsetPanel(session, "main_tabs", selected = "Sample Setup")
+
+   }, error = function(e) {
+     showNotification(paste("Error:", e$message), type = "error")
+   })
+ })
+
+ # ==================== SAMPLE TABLE ====================
+ output$sample_table <- renderDT({
+   req(rv$sample_metadata)
+
+   # Create display table with chips
+   display_df <- rv$sample_metadata %>%
+     mutate(
+       Cell_Line_Display = ifelse(Cell_Line == "", "-",
+                                  paste0('<span class="group-chip chip-cellline">', Cell_Line, '</span>')),
+       Condition_Display = ifelse(Condition == "", "-",
+                                  paste0('<span class="group-chip chip-condition">', Condition, '</span>')),
+       Treatment_Display = ifelse(Treatment == "", "-",
+                                  paste0('<span class="group-chip chip-treatment">', Treatment, '</span>')),
+       Control_Display = ifelse(Is_Control,
+                               '<span class="group-chip chip-control">CONTROL</span>', "")
+     ) %>%
+     select(Sample, Cell_Line_Display, Condition_Display, Treatment_Display, Control_Display)
+
+   colnames(display_df) <- c("Sample", "Cell Line", "Condition", "Treatment", "Control")
+
+   datatable(
+     display_df,
+     selection = list(mode = 'multiple', selected = rv$selected_rows),
+     escape = FALSE,
+     options = list(
+       pageLength = 15,
+       dom = 'tip',
+       scrollX = TRUE,
+       columnDefs = list(list(className = 'dt-center', targets = '_all'))
+     ),
+     class = 'cell-border stripe'
+   )
+ })
+
+ # Track selection
+ observeEvent(input$sample_table_rows_selected, {
+   rv$selected_rows <- input$sample_table_rows_selected
+ }, ignoreNULL = FALSE)
+
+ # Selection info display
+ output$selection_info <- renderUI({
+   n_selected <- length(rv$selected_rows)
+   if (n_selected == 0) {
+     div(class = "alert-modern alert-warning-modern", style = "margin-bottom: 1rem; padding: 0.75rem;",
+       HTML("&#9888;"),
+       div(tags$strong("No samples selected. "), "Click wells on the plate or rows in the table.")
+     )
+   } else {
+     div(class = "selection-info",
+       HTML("&#9989;"),
+       span(class = "selection-count", n_selected),
+       paste("sample(s) selected:", paste(rv$selected_rows, collapse = ", "))
+     )
+   }
+ })
+
+ # ==================== 96-WELL PLATE ====================
+
+ # Render the plate UI
+ output$plate_ui <- renderUI({
+   req(rv$raw_data)
+   # Force reactivity on sample_metadata changes
+   rv$sample_metadata
+   
+   n_samples <- nrow(rv$raw_data)
+   max_wells <- 96  # 8 rows x 12 columns
+
+   # Debug: Log data info to console
+   cat("\n=== PLATE RENDERING DEBUG ===\n")
+   cat("n_samples:", n_samples, "\n")
+   cat("ncol(raw_data):", ncol(rv$raw_data), "\n")
+   cat("First row values:", paste(head(unlist(rv$raw_data[1, ]), 6), collapse=", "), "\n")
+   cat("==============================\n")
+
+   # Row labels
+   row_labels <- LETTERS[1:8]
+   col_labels <- 1:12
+
+   # Calculate mean Ct for each sample
+   # Use first 3 or 4 columns based on reps setting (default to 3)
+   reps <- if (!is.null(input$reps)) as.numeric(input$reps) else 3
+   
+   # Detect if first column is sample IDs (sequential integers 1,2,3...)
+   # If so, skip it when extracting Ct values
+   first_col <- as.numeric(unlist(rv$raw_data[, 1]))
+   is_sample_id_col <- !any(is.na(first_col)) && 
+                       all(first_col == 1:nrow(rv$raw_data)) ||
+                       (length(unique(first_col)) == nrow(rv$raw_data) && 
+                        all(diff(sort(first_col)) == 1))
+   
+   # Determine starting column for Ct data
+   start_col <- if (is_sample_id_col) 2 else 1
+   end_col <- start_col + reps - 1
+   end_col <- min(end_col, ncol(rv$raw_data))  # Don't exceed available columns
+   
+   cat("\n=== Ct EXTRACTION DEBUG ===\n")
+   cat("First column values (first 5):", paste(head(first_col, 5), collapse=", "), "\n")
+   cat("Is sample ID column:", is_sample_id_col, "\n")
+   cat("Using columns", start_col, "to", end_col, "for Ct values\n")
+   
+   mean_cts <- sapply(1:n_samples, function(i) {
+     # Get values from Ct columns for this sample
+     if (end_col >= start_col && ncol(rv$raw_data) >= end_col) {
+       vals <- as.numeric(unlist(rv$raw_data[i, start_col:end_col]))
+       # Return mean of valid (non-NA, reasonable Ct range 5-45) values
+       valid_vals <- vals[!is.na(vals) & vals >= 5 & vals <= 50]
+       if (length(valid_vals) == 0) {
+         # Try without range filter
+         valid_vals <- vals[!is.na(vals)]
+       }
+       if (length(valid_vals) == 0) {
+         NA
+       } else {
+         round(mean(valid_vals), 1)
+       }
+     } else {
+       NA
+     }
+   })
+   
+   cat("First 6 mean Ct values:", paste(head(mean_cts, 6), collapse=", "), "\n")
+   cat("===========================\n")
+
+   # Create group color mapping based on unique Cell_Line + Condition combinations
+   group_colors <- list()
+   if (!is.null(rv$sample_metadata)) {
+     # Create unique group identifiers
+     groups <- paste0(rv$sample_metadata$Cell_Line, "|", rv$sample_metadata$Condition)
+     unique_groups <- unique(groups[groups != "|"])  # Exclude empty groups
+     for (i in seq_along(unique_groups)) {
+       group_colors[[unique_groups[i]]] <- ((i - 1) %% 12) + 1  # Cycle through 12 colors
+     }
+   }
+
+   # Create plate grid
+   plate_elements <- list()
+
+   # Add header row with column numbers
+   plate_elements[[1]] <- div(class = "plate-header", "")  # Empty corner
+   for (col in col_labels) {
+     plate_elements[[length(plate_elements) + 1]] <- div(class = "plate-header", col)
+   }
+
+   # Add rows with wells
+   well_index <- 1
+   for (row_idx in 1:8) {
+     # Row label
+     plate_elements[[length(plate_elements) + 1]] <- div(class = "plate-row-label", row_labels[row_idx])
+
+     # Wells in this row
+     for (col in 1:12) {
+       if (well_index <= n_samples) {
+         # Well position name (A1, A2, etc.)
+         well_name <- paste0(row_labels[row_idx], col)
+
+         # Determine well class based on metadata
+         well_classes <- "plate-well"
+
+         # Get metadata for tooltip and coloring
+         cell_line <- ""
+         condition <- ""
+         treatment <- ""
+         is_control <- FALSE
+
+         if (well_index %in% rv$selected_rows) {
+           well_classes <- paste(well_classes, "selected")
+         }
+
+         if (!is.null(rv$sample_metadata)) {
+           meta <- rv$sample_metadata[well_index, ]
+           cell_line <- meta$Cell_Line
+           condition <- meta$Condition
+           treatment <- meta$Treatment
+           is_control <- meta$Is_Control
+
+           # Add group color class
+           group_key <- paste0(cell_line, "|", condition)
+           if (group_key != "|" && !is.null(group_colors[[group_key]])) {
+             well_classes <- paste(well_classes, paste0("group-", group_colors[[group_key]]))
+           }
+
+           # Add type class (control overrides group color styling)
+           if (is_control) {
+             well_classes <- paste(well_classes, "is-control")
+           } else if (cell_line == "" && condition == "" && treatment == "") {
+             well_classes <- paste(well_classes, "has-data")
+           }
+         }
+
+         # Get mean Ct value for display
+         ct_val <- mean_cts[well_index]
+         ct_display <- if (is.na(ct_val)) "-" else as.character(ct_val)
+
+         # Create well with click handler and data attributes for tooltip
+         plate_elements[[length(plate_elements) + 1]] <- tags$div(
+           class = well_classes,
+           `data-well` = as.character(well_index),
+           `data-wellname` = well_name,
+           `data-cellline` = cell_line,
+           `data-condition` = condition,
+           `data-treatment` = treatment,
+           `data-ctvalue` = ct_display,
+           `data-iscontrol` = tolower(as.character(is_control)),
+           onclick = sprintf("Shiny.setInputValue('plate_well_click', {well: %d, shiftKey: event.shiftKey, ctrlKey: event.ctrlKey || event.metaKey, time: Date.now()})", well_index),
+           ct_display  # Direct text content, no wrapper
+         )
+       } else {
+         # Empty well (beyond sample count)
+         plate_elements[[length(plate_elements) + 1]] <- div(class = "plate-well empty", "")
+       }
+       well_index <- well_index + 1
+     }
+   }
+
+   tagList(
+     div(class = "plate-grid", plate_elements),
+     div(class = "plate-hint",
+       HTML("<strong>Tip:</strong> Click to select/deselect. Shift+click for range. Ctrl/Cmd+click to add to selection.")
+     )
+   )
+ })
+
+ # Handle well clicks with shift/ctrl support
+ observeEvent(input$plate_well_click, {
+   req(input$plate_well_click)
+   well <- as.numeric(input$plate_well_click$well)
+   shift_key <- isTRUE(input$plate_well_click$shiftKey)
+   ctrl_key <- isTRUE(input$plate_well_click$ctrlKey)
+
+   req(rv$raw_data)
+   n_samples <- nrow(rv$raw_data)
+
+   if (shift_key && !is.null(rv$last_clicked_well)) {
+     # Shift+click: select range from last clicked to current
+     start_well <- min(rv$last_clicked_well, well)
+     end_well <- max(rv$last_clicked_well, well)
+     range_wells <- start_well:end_well
+     range_wells <- range_wells[range_wells <= n_samples]
+
+     if (ctrl_key) {
+       # Shift+Ctrl: add range to existing selection
+       rv$selected_rows <- unique(c(rv$selected_rows, range_wells))
+     } else {
+       # Shift only: replace selection with range
+       rv$selected_rows <- range_wells
+     }
+   } else if (ctrl_key) {
+     # Ctrl+click: toggle single well in selection
+     if (well %in% rv$selected_rows) {
+       rv$selected_rows <- rv$selected_rows[rv$selected_rows != well]
+     } else {
+       rv$selected_rows <- c(rv$selected_rows, well)
+     }
+   } else {
+     # Normal click: select only this well (replaces selection)
+     if (well %in% rv$selected_rows && length(rv$selected_rows) == 1) {
+       # Clicking the only selected well deselects it
+       rv$selected_rows <- c()
+     } else {
+       rv$selected_rows <- well
+     }
+   }
+
+   # Update last clicked
+   rv$last_clicked_well <- well
+
+   # Update DT selection to match
+   proxy <- dataTableProxy("sample_table")
+   selectRows(proxy, rv$selected_rows)
+ })
+
+ # Handle drag-to-select from plate
+ observeEvent(input$plate_drag_select, {
+   req(input$plate_drag_select)
+   wells <- input$plate_drag_select$wells
+   ctrl_key <- isTRUE(input$plate_drag_select$ctrlKey)
+
+   if (length(wells) > 0) {
+     if (ctrl_key) {
+       # Ctrl+drag: add to existing selection
+       rv$selected_rows <- unique(c(rv$selected_rows, wells))
+     } else {
+       # Normal drag: replace selection
+       rv$selected_rows <- wells
+     }
+
+     # Update DT selection to match
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ # Plate row selection buttons
+ observeEvent(input$plate_row_A, {
+   req(rv$raw_data)
+   wells <- 1:min(12, nrow(rv$raw_data))
+   rv$selected_rows <- wells
+   proxy <- dataTableProxy("sample_table")
+   selectRows(proxy, rv$selected_rows)
+ })
+
+ observeEvent(input$plate_row_B, {
+   req(rv$raw_data)
+   wells <- 13:min(24, nrow(rv$raw_data))
+   wells <- wells[wells <= nrow(rv$raw_data)]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_row_C, {
+   req(rv$raw_data)
+   wells <- 25:min(36, nrow(rv$raw_data))
+   wells <- wells[wells <= nrow(rv$raw_data)]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_row_D, {
+   req(rv$raw_data)
+   wells <- 37:min(48, nrow(rv$raw_data))
+   wells <- wells[wells <= nrow(rv$raw_data)]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_row_E, {
+   req(rv$raw_data)
+   wells <- 49:min(60, nrow(rv$raw_data))
+   wells <- wells[wells <= nrow(rv$raw_data)]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_row_F, {
+   req(rv$raw_data)
+   wells <- 61:min(72, nrow(rv$raw_data))
+   wells <- wells[wells <= nrow(rv$raw_data)]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_row_G, {
+   req(rv$raw_data)
+   wells <- 73:min(84, nrow(rv$raw_data))
+   wells <- wells[wells <= nrow(rv$raw_data)]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_row_H, {
+   req(rv$raw_data)
+   wells <- 85:min(96, nrow(rv$raw_data))
+   wells <- wells[wells <= nrow(rv$raw_data)]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ # Column selection buttons
+ observeEvent(input$plate_col_1_6, {
+   req(rv$raw_data)
+   n <- nrow(rv$raw_data)
+   # Wells in columns 1-6 (positions 1-6, 13-18, 25-30, etc.)
+   wells <- c()
+   for (row in 0:7) {
+     start <- row * 12 + 1
+     end <- row * 12 + 6
+     wells <- c(wells, start:end)
+   }
+   wells <- wells[wells <= n]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_col_7_12, {
+   req(rv$raw_data)
+   n <- nrow(rv$raw_data)
+   # Wells in columns 7-12 (positions 7-12, 19-24, 31-36, etc.)
+   wells <- c()
+   for (row in 0:7) {
+     start <- row * 12 + 7
+     end <- row * 12 + 12
+     wells <- c(wells, start:end)
+   }
+   wells <- wells[wells <= n]
+   if (length(wells) > 0) {
+     rv$selected_rows <- wells
+     proxy <- dataTableProxy("sample_table")
+     selectRows(proxy, rv$selected_rows)
+   }
+ })
+
+ observeEvent(input$plate_select_all, {
+   req(rv$raw_data)
+   rv$selected_rows <- 1:nrow(rv$raw_data)
+   proxy <- dataTableProxy("sample_table")
+   selectRows(proxy, rv$selected_rows)
+ })
+
+ observeEvent(input$plate_select_none, {
+   rv$selected_rows <- c()
+   proxy <- dataTableProxy("sample_table")
+   selectRows(proxy, NULL)
+ })
+
+ # ==================== BATCH APPLY FUNCTIONS ====================
+
+ observeEvent(input$apply_cellline, {
+   req(length(rv$selected_rows) > 0, input$batch_cellline != "")
+   rv$sample_metadata$Cell_Line[rv$selected_rows] <- input$batch_cellline
+   showNotification(paste("Cell Line set to '", input$batch_cellline, "' for ",
+                         length(rv$selected_rows), " samples"), type = "message")
+   updateTextInput(session, "batch_cellline", value = "")
+ })
+
+ observeEvent(input$apply_condition, {
+   req(length(rv$selected_rows) > 0, input$batch_condition != "")
+   rv$sample_metadata$Condition[rv$selected_rows] <- input$batch_condition
+   showNotification(paste("Condition set to '", input$batch_condition, "' for ",
+                         length(rv$selected_rows), " samples"), type = "message")
+   updateTextInput(session, "batch_condition", value = "")
+ })
+
+ observeEvent(input$apply_treatment, {
+   req(length(rv$selected_rows) > 0, input$batch_treatment != "")
+   rv$sample_metadata$Treatment[rv$selected_rows] <- input$batch_treatment
+   showNotification(paste("Treatment set to '", input$batch_treatment, "' for ",
+                         length(rv$selected_rows), " samples"), type = "message")
+   updateTextInput(session, "batch_treatment", value = "")
+ })
+
+ observeEvent(input$set_control, {
+   req(length(rv$selected_rows) > 0)
+   rv$sample_metadata$Is_Control <- FALSE  # Reset all
+   rv$sample_metadata$Is_Control[rv$selected_rows] <- TRUE
+   showNotification(paste(length(rv$selected_rows),
+                         "sample(s) set as control group"), type = "message")
+ })
+
+ # Apply All non-empty fields
+ observeEvent(input$apply_all, {
+   req(length(rv$selected_rows) > 0)
+
+   applied <- c()
+
+   # Apply Cell Line if not empty
+   if (!is.null(input$batch_cellline) && input$batch_cellline != "") {
+     rv$sample_metadata$Cell_Line[rv$selected_rows] <- input$batch_cellline
+     applied <- c(applied, paste0("Cell Line='", input$batch_cellline, "'"))
+   }
+
+   # Apply Condition if not empty
+   if (!is.null(input$batch_condition) && input$batch_condition != "") {
+     rv$sample_metadata$Condition[rv$selected_rows] <- input$batch_condition
+     applied <- c(applied, paste0("Condition='", input$batch_condition, "'"))
+   }
+
+   # Apply Treatment if not empty
+   if (!is.null(input$batch_treatment) && input$batch_treatment != "") {
+     rv$sample_metadata$Treatment[rv$selected_rows] <- input$batch_treatment
+     applied <- c(applied, paste0("Treatment='", input$batch_treatment, "'"))
+   }
+
+   if (length(applied) > 0) {
+     showNotification(paste("Applied", paste(applied, collapse = ", "), "to",
+                           length(rv$selected_rows), "samples"), type = "message")
+     # Clear all text inputs after applying
+     updateTextInput(session, "batch_cellline", value = "")
+     updateTextInput(session, "batch_condition", value = "")
+     updateTextInput(session, "batch_treatment", value = "")
+   } else {
+     showNotification("No fields to apply - please fill in at least one field", type = "warning")
+   }
+ })
+
+ # ==================== QUICK SELECT FUNCTIONS ====================
+
+ observeEvent(input$select_all, {
+   req(rv$sample_metadata)
+   proxy <- dataTableProxy("sample_table")
+   selectRows(proxy, 1:nrow(rv$sample_metadata))
+ })
+
+ observeEvent(input$select_none, {
+   proxy <- dataTableProxy("sample_table")
+   selectRows(proxy, NULL)
+ })
+
+ observeEvent(input$select_odd, {
+   req(rv$sample_metadata)
+   proxy <- dataTableProxy("sample_table")
+   odd_rows <- seq(1, nrow(rv$sample_metadata), by = 2)
+   selectRows(proxy, odd_rows)
+ })
+
+ observeEvent(input$select_even, {
+   req(rv$sample_metadata)
+   proxy <- dataTableProxy("sample_table")
+   even_rows <- seq(2, nrow(rv$sample_metadata), by = 2)
+   selectRows(proxy, even_rows)
+ })
+
+ observeEvent(input$select_first_half, {
+   req(rv$sample_metadata)
+   proxy <- dataTableProxy("sample_table")
+   first_half <- 1:ceiling(nrow(rv$sample_metadata) / 2)
+   selectRows(proxy, first_half)
+ })
+
+ observeEvent(input$select_second_half, {
+   req(rv$sample_metadata)
+   proxy <- dataTableProxy("sample_table")
+   n <- nrow(rv$sample_metadata)
+   second_half <- (ceiling(n / 2) + 1):n
+   selectRows(proxy, second_half)
+ })
+
+ observeEvent(input$clear_metadata, {
+   req(rv$sample_metadata)
+   rv$sample_metadata$Cell_Line <- ""
+   rv$sample_metadata$Condition <- ""
+   rv$sample_metadata$Treatment <- ""
+   rv$sample_metadata$Is_Control <- FALSE
+   showNotification("All metadata cleared", type = "message")
+ })
+
+ # ==================== OUTPUT FLAGS ====================
+ output$file_uploaded <- reactive(rv$file_uploaded)
+ output$analysis_complete <- reactive(rv$analysis_complete)
+ outputOptions(output, "file_uploaded", suspendWhenHidden = FALSE)
+ outputOptions(output, "analysis_complete", suspendWhenHidden = FALSE)
+
+ # File info
+ output$file_info_ui <- renderUI({
+   req(rv$raw_data)
+   div(style = "margin-bottom: 1rem; padding: 1rem; background: var(--bg-light); border-radius: var(--radius-md);",
+     tags$strong("Rows: "), nrow(rv$raw_data), " | ",
+     tags$strong("Columns: "), ncol(rv$raw_data), " | ",
+     tags$strong("Genes: "), floor(ncol(rv$raw_data) / as.numeric(input$reps))
+   )
+ })
+
+ output$raw_data_table <- renderDT({
+   req(rv$raw_data)
+   datatable(head(rv$raw_data, 10),
+            options = list(pageLength = 5, scrollX = TRUE, dom = 't'),
+            rownames = FALSE)
+ })
+
+ # ==================== ANALYSIS ====================
+ observeEvent(input$analyze, {
+   req(rv$raw_data)
+
+   withProgress(message = "Analyzing...", value = 0, {
+
+     tryCatch({
+       incProgress(0.1, detail = "Cleaning data...")
+
+       cleaned <- clean_data(rv$raw_data, input$reps, input$remove_outliers, input$outlier_threshold)
+       rv$cleaned_data <- cleaned$data
+       rv$outlier_info <- cleaned$outlier_info
+
+       incProgress(0.3, detail = "Computing ΔCt...")
+
+       dct_result <- compute_dct(rv$cleaned_data, input$reps)
+       rv$dct_data <- dct_result$dct_data
+
+       incProgress(0.5, detail = "Computing expression...")
+
+       rv$expr_data <- 2 ^ rv$dct_data
+
+       incProgress(0.7, detail = "Computing relative expression...")
+
+       # Use control group if defined
+       control_rows <- which(rv$sample_metadata$Is_Control)
+       if (length(control_rows) == 0) control_rows <- 1
+
+       rv$rel_data <- compute_relative_expression(rv$expr_data, input$reps, control_rows)
+
+       incProgress(0.9, detail = "Generating output...")
+
+       rv$csv_data <- prepare_csv_output(rv$cleaned_data, rv$dct_data, rv$expr_data,
+                                        rv$rel_data, input$reps, rv$sample_metadata)
+       rv$qc_metrics <- calculate_qc_metrics(rv$cleaned_data, rv$expr_data, rv$rel_data, input$reps)
+
+       rv$analysis_complete <- TRUE
+       incProgress(1, detail = "Done!")
+
+       showNotification("Analysis complete!", type = "message")
+       updateTabsetPanel(session, "main_tabs", selected = "Results")
+
+     }, error = function(e) {
+       showNotification(paste("Error:", e$message), type = "error")
+     })
+   })
+ })
+
+ # Reset
+ observeEvent(input$reset, {
+   rv$raw_data <- NULL
+   rv$sample_metadata <- NULL
+   rv$selected_rows <- c()
+   rv$cleaned_data <- NULL
+   rv$dct_data <- NULL
+   rv$expr_data <- NULL
+   rv$rel_data <- NULL
+   rv$csv_data <- NULL
+   rv$analysis_complete <- FALSE
+   rv$file_uploaded <- FALSE
+   rv$qc_metrics <- NULL
+   rv$outlier_info <- NULL
+   reset("file")
+   updateTabsetPanel(session, "main_tabs", selected = "Sample Setup")
+   showNotification("Reset complete", type = "message")
+ })
+
+ # ==================== RESULT TABLES ====================
+ output$ct_table <- renderDT({
+   req(rv$cleaned_data)
+   df <- round(rv$cleaned_data, 3)
+   if (!is.null(rv$sample_metadata)) {
+     df <- cbind(Sample = rv$sample_metadata$Sample,
+                Cell_Line = rv$sample_metadata$Cell_Line,
+                Condition = rv$sample_metadata$Condition, df)
+   }
+   datatable(df, options = list(pageLength = 10, scrollX = TRUE))
+ })
+
+ output$dct_table <- renderDT({
+   req(rv$dct_data)
+   df <- round(rv$dct_data, 3)
+   if (!is.null(rv$sample_metadata)) {
+     df <- cbind(Sample = rv$sample_metadata$Sample,
+                Cell_Line = rv$sample_metadata$Cell_Line,
+                Condition = rv$sample_metadata$Condition, df)
+   }
+   datatable(df, options = list(pageLength = 10, scrollX = TRUE))
+ })
+
+ output$expr_table <- renderDT({
+   req(rv$expr_data)
+   df <- round(rv$expr_data, 6)
+   if (!is.null(rv$sample_metadata)) {
+     df <- cbind(Sample = rv$sample_metadata$Sample,
+                Cell_Line = rv$sample_metadata$Cell_Line,
+                Condition = rv$sample_metadata$Condition, df)
+   }
+   datatable(df, options = list(pageLength = 10, scrollX = TRUE))
+ })
+
+ output$rel_table <- renderDT({
+   req(rv$rel_data)
+   df <- round(rv$rel_data, 6)
+   if (!is.null(rv$sample_metadata)) {
+     df <- cbind(Sample = rv$sample_metadata$Sample,
+                Cell_Line = rv$sample_metadata$Cell_Line,
+                Condition = rv$sample_metadata$Condition, df)
+   }
+   datatable(df, options = list(pageLength = 10, scrollX = TRUE))
+ })
+
+ output$expr_summary_table <- renderTable({
+   req(rv$qc_metrics)
+   rv$qc_metrics$expr_summary
+ }, striped = TRUE, hover = TRUE, bordered = TRUE)
+
+ output$rel_summary_table <- renderTable({
+   req(rv$qc_metrics)
+   rv$qc_metrics$rel_summary
+ }, striped = TRUE, hover = TRUE, bordered = TRUE)
+
+ output$qc_summary <- renderTable({
+   req(rv$qc_metrics)
+   rv$qc_metrics$qc_summary
+ }, striped = TRUE, hover = TRUE, bordered = TRUE)
+
+ output$outlier_summary <- renderTable({
+   req(rv$outlier_info)
+   if (nrow(rv$outlier_info) == 0) {
+     data.frame(Status = "No outliers removed")
+   } else {
+     rv$outlier_info
+   }
+ }, striped = TRUE, hover = TRUE, bordered = TRUE)
+
+ # ==================== PLOTS ====================
+ output$ct_boxplot <- renderPlot({
+   req(rv$cleaned_data)
+   plot_ct_boxplot(rv$cleaned_data, input$reps, rv$sample_metadata)
+ }, res = 100)
+
+ output$expr_boxplot <- renderPlot({
+   req(rv$expr_data)
+   plot_expr_boxplot(rv$expr_data, input$reps, rv$sample_metadata)
+ }, res = 100)
+
+ output$rel_heatmap <- renderPlot({
+   req(rv$rel_data)
+   plot_rel_heatmap(rv$rel_data, input$reps, rv$sample_metadata)
+ }, res = 100)
+
+ output$cv_plot <- renderPlot({
+   req(rv$qc_metrics)
+   plot_cv_plot(rv$qc_metrics$cv_data, input$reps)
+ }, res = 100)
+
+ # Download
+ output$downloadData <- downloadHandler(
+   filename = function() { paste0("qpcr_analysis_", Sys.Date(), ".csv") },
+   content = function(file) {
+     write.table(rv$csv_data, file = file, sep = ",",
+                col.names = FALSE, row.names = FALSE, quote = FALSE, na = "")
+   }
+ )
+
+ # ==================== HELPER FUNCTIONS ====================
+
+ clean_data <- function(raw_data, reps, remove_outliers, threshold) {
+   cleaned <- raw_data
+   outlier_info <- data.frame(Gene = character(), Sample = integer(),
+                             Outliers_Removed = integer(), stringsAsFactors = FALSE)
+
+   if (remove_outliers && reps == 4) {
+     n_genes <- ncol(raw_data) / reps
+
+     for (g in 1:n_genes) {
+       start_col <- (g - 1) * reps + 1
+       end_col <- g * reps
+
+       for (row in 1:nrow(raw_data)) {
+         block <- as.numeric(raw_data[row, start_col:end_col])
+
+         if (sum(!is.na(block)) >= 3) {
+           mean_val <- mean(block, na.rm = TRUE)
+           sd_val <- sd(block, na.rm = TRUE)
+           outliers <- which(abs(block - mean_val) > threshold * sd_val)
+
+           if (length(outliers) > 0 && length(outliers) < length(block)) {
+             extreme <- outliers[which.max(abs(block[outliers] - mean_val))]
+             cleaned[row, start_col + extreme - 1] <- NA
+             outlier_info <- rbind(outlier_info, data.frame(
+               Gene = paste0("Gene", g), Sample = row, Outliers_Removed = 1))
+           }
+         }
+       }
+     }
+   }
+   list(data = cleaned, outlier_info = outlier_info)
+ }
+
+ compute_dct <- function(cleaned_data, reps) {
+   n_reps <- reps
+   n_genes <- ncol(cleaned_data) / n_reps
+
+   gene_indices <- lapply(0:(n_genes-1), function(i) {
+     start <- i * n_reps + 1
+     (start):(start + n_reps - 1)
+   })
+
+   compute_dCt_optimal <- function(control_vals, target_vals) {
+     if (all(is.na(control_vals)) || all(is.na(target_vals))) {
+       return(rep(NA, length(target_vals)))
+     }
+
+     if (sum(!is.na(target_vals)) < 2) {
+       dCt <- control_vals - target_vals
+       dCt[is.na(control_vals) | is.na(target_vals)] <- NA
+       return(dCt)
+     }
+
+     tryCatch({
+       perms <- permutations(n = length(target_vals), r = length(target_vals), v = target_vals)
+       best_dCt <- NULL
+       min_sd <- Inf
+
+       for (i in 1:nrow(perms)) {
+         pair <- perms[i, ]
+         dCt <- control_vals - pair
+         dCt[is.na(control_vals) | is.na(pair)] <- NA
+
+         if (sum(!is.na(dCt)) >= 2) {
+           current_sd <- sd(dCt, na.rm = TRUE)
+           if (current_sd < min_sd) {
+             min_sd <- current_sd
+             best_dCt <- dCt
+           }
+         }
+       }
+       if (!is.null(best_dCt)) return(best_dCt)
+     }, error = function(e) {})
+
+     dCt <- control_vals - target_vals
+     dCt[is.na(control_vals) | is.na(target_vals)] <- NA
+     dCt
+   }
+
+   dCt_all <- list()
+
+   for (row in 1:nrow(cleaned_data)) {
+     row_vals <- as.numeric(cleaned_data[row, ])
+     ref_vals <- row_vals[gene_indices[[1]]]
+     dCt_row <- c()
+
+     for (g in 2:n_genes) {
+       target_vals <- row_vals[gene_indices[[g]]]
+       dCt_vals <- compute_dCt_optimal(ref_vals, target_vals)
+       dCt_row <- c(dCt_row, dCt_vals)
+     }
+
+     dCt_row <- c(rep(NA, n_reps), dCt_row)
+     dCt_all[[row]] <- dCt_row
+   }
+
+   list(dct_data = as.data.frame(do.call(rbind, dCt_all)))
+ }
+
+ compute_relative_expression <- function(expr_data, reps, control_rows = 1) {
+   # Use mean of control rows as reference
+   if (length(control_rows) == 1) {
+     control_expr <- as.numeric(expr_data[control_rows, ])
+   } else {
+     control_expr <- colMeans(expr_data[control_rows, ], na.rm = TRUE)
+   }
+
+   compute_relative_optimal <- function(control_vals, treat_vals) {
+     if (all(is.na(control_vals)) || all(is.na(treat_vals))) {
+       return(rep(NA, length(treat_vals)))
+     }
+
+     if (sum(!is.na(treat_vals)) < 2) {
+       rel_vals <- treat_vals / control_vals
+       rel_vals[is.na(treat_vals) | is.na(control_vals)] <- NA
+       return(rel_vals)
+     }
+
+     tryCatch({
+       perms <- permutations(n = length(control_vals), r = length(control_vals), v = control_vals)
+       best_rel <- NULL
+       min_sd <- Inf
+
+       for (i in 1:nrow(perms)) {
+         perm_ctrl <- perms[i, ]
+         rel_vals <- treat_vals / perm_ctrl
+         rel_vals[is.na(treat_vals) | is.na(perm_ctrl)] <- NA
+
+         if (sum(!is.na(rel_vals)) >= 2) {
+           sd_val <- sd(rel_vals, na.rm = TRUE)
+           if (sd_val < min_sd) {
+             min_sd <- sd_val
+             best_rel <- rel_vals
+           }
+         }
+       }
+       if (!is.null(best_rel)) return(best_rel)
+     }, error = function(e) {})
+
+     rel_vals <- treat_vals / control_vals
+     rel_vals[is.na(treat_vals) | is.na(control_vals)] <- NA
+     rel_vals
+   }
+
+   rel_all <- list()
+
+   for (row in 1:nrow(expr_data)) {
+     if (row %in% control_rows) {
+       rel_all[[row]] <- rep(1, ncol(expr_data))
+     } else {
+       treat_vals <- as.numeric(expr_data[row, ])
+       rel_all[[row]] <- compute_relative_optimal(control_expr, treat_vals)
+     }
+   }
+
+   as.data.frame(do.call(rbind, rel_all))
+ }
+
+ calculate_qc_metrics <- function(cleaned_data, expr_data, rel_data, reps) {
+   n_genes <- ncol(cleaned_data) / reps
+
+   calc_summary <- function(data, n_reps) {
+     means <- sds <- cvs <- list()
+     for (g in 1:n_genes) {
+       start_col <- (g - 1) * n_reps + 1
+       end_col <- g * n_reps
+
+       block_means <- apply(data[, start_col:end_col], 1, function(x)
+         if (all(is.na(x))) NA else mean(x, na.rm = TRUE))
+       block_sds <- apply(data[, start_col:end_col], 1, function(x)
+         if (all(is.na(x))) NA else sd(x, na.rm = TRUE))
+
+       means[[g]] <- block_means
+       sds[[g]] <- block_sds
+       cvs[[g]] <- block_sds / block_means * 100
+     }
+     list(means = do.call(cbind, means), sds = do.call(cbind, sds), cvs = do.call(cbind, cvs))
+   }
+
+   expr_summary <- calc_summary(expr_data, reps)
+   rel_summary <- calc_summary(rel_data, reps)
+
+   expr_summary_table <- data.frame(
+     Gene = paste0("Gene", 1:n_genes),
+     Mean = colMeans(expr_summary$means, na.rm = TRUE),
+     SD = colMeans(expr_summary$sds, na.rm = TRUE),
+     CV = colMeans(expr_summary$cvs, na.rm = TRUE)
+   )
+
+   rel_summary_table <- data.frame(
+     Gene = paste0("Gene", 1:n_genes),
+     Mean = colMeans(rel_summary$means, na.rm = TRUE),
+     SD = colMeans(rel_summary$sds, na.rm = TRUE),
+     CV = colMeans(rel_summary$cvs, na.rm = TRUE)
+   )
+
+   qc_summary <- data.frame(
+     Metric = c("Samples", "Genes", "Missing %", "Mean CV%"),
+     Value = c(nrow(cleaned_data), n_genes,
+              round(sum(is.na(cleaned_data)) / length(as.matrix(cleaned_data)) * 100, 1),
+              round(mean(colMeans(expr_summary$cvs, na.rm = TRUE), na.rm = TRUE), 1))
+   )
+
+   list(expr_summary = expr_summary_table, rel_summary = rel_summary_table,
+       qc_summary = qc_summary, cv_data = expr_summary$cvs)
+ }
+
+ prepare_csv_output <- function(cleaned_data, dct_data, expr_data, rel_data, reps, metadata) {
+   # Include sample metadata in output
+   round_df <- function(df, digits = 6) {
+     df[] <- lapply(df, function(x) if (is.numeric(x)) round(x, digits) else x)
+     df
+   }
+
+   clean_block <- function(df) {
+     mat <- as.matrix(df)
+     mat[is.na(mat)] <- "#VALUE!"
+     apply(mat, c(1, 2), as.character)
+   }
+
+   # Add metadata columns
+   meta_cols <- data.frame(
+     Sample = metadata$Sample,
+     Cell_Line = metadata$Cell_Line,
+     Condition = metadata$Condition,
+     Treatment = metadata$Treatment
+   )
+
+   ct_with_meta <- cbind(meta_cols, round_df(cleaned_data, 3))
+   dct_with_meta <- cbind(meta_cols, round_df(dct_data, 3))
+   expr_with_meta <- cbind(meta_cols, round_df(expr_data, 6))
+   rel_with_meta <- cbind(meta_cols, round_df(rel_data, 6))
+
+   ct_block <- clean_block(ct_with_meta)
+   dct_block <- clean_block(dct_with_meta)
+   expr_block <- clean_block(expr_with_meta)
+   rel_block <- clean_block(rel_with_meta)
+
+   max_cols <- max(ncol(ct_block), ncol(dct_block), ncol(expr_block), ncol(rel_block))
+
+   pad <- function(block, target) {
+     if (ncol(block) < target) {
+       block <- cbind(block, matrix("", nrow = nrow(block), ncol = target - ncol(block)))
+     }
+     block
+   }
+
+   ct_block <- pad(ct_block, max_cols)
+   dct_block <- pad(dct_block, max_cols)
+   expr_block <- pad(expr_block, max_cols)
+   rel_block <- pad(rel_block, max_cols)
+
+   title <- function(txt) matrix(c(txt, rep("", max_cols - 1)), nrow = 1)
+   blank <- matrix("", nrow = 1, ncol = max_cols)
+
+   rbind(
+     title("### Cleaned Ct Data ###"), ct_block, blank,
+     title("### Delta Ct Values ###"), dct_block, blank,
+     title("### Expression Values ###"), expr_block, blank,
+     title("### Relative Expression ###"), rel_block
+   )
+ }
+
+ # ==================== PLOTTING ====================
+ theme_modern <- function() {
+   theme_minimal() +
+     theme(
+       plot.title = element_text(size = 12, face = "bold", color = "#1e293b"),
+       plot.subtitle = element_text(size = 10, color = "#64748b"),
+       axis.title = element_text(size = 10, color = "#475569"),
+       axis.text = element_text(size = 9, color = "#64748b"),
+       axis.text.x = element_text(angle = 45, hjust = 1),
+       panel.grid.major = element_line(color = "#e2e8f0", size = 0.5),
+       panel.grid.minor = element_blank(),
+       plot.background = element_rect(fill = "transparent", color = NA),
+       panel.background = element_rect(fill = "transparent", color = NA)
+     )
+ }
+
+ modern_colors <- c("#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe", "#11998e", "#38ef7d")
+
+ plot_ct_boxplot <- function(cleaned_data, reps, metadata = NULL) {
+   n_genes <- ncol(cleaned_data) / reps
+
+   plot_data <- data.frame()
+   for (g in 1:n_genes) {
+     start_col <- (g - 1) * reps + 1
+     end_col <- g * reps
+
+     for (row in 1:nrow(cleaned_data)) {
+       values <- as.numeric(cleaned_data[row, start_col:end_col])
+
+       label <- if (!is.null(metadata) && metadata$Condition[row] != "") {
+         metadata$Condition[row]
+       } else {
+         paste0("S", row)
+       }
+
+       plot_data <- rbind(plot_data, data.frame(
+         Gene = paste0("Gene ", g), Sample = label, Ct_Value = values))
+     }
+   }
+
+   plot_data <- plot_data[!is.na(plot_data$Ct_Value), ]
+
+   ggplot(plot_data, aes(x = Gene, y = Ct_Value, fill = Gene)) +
+     geom_boxplot(alpha = 0.8, outlier.shape = NA, color = "#475569") +
+     geom_jitter(width = 0.2, alpha = 0.6, size = 1.5, color = "#1e293b") +
+     scale_fill_manual(values = modern_colors) +
+     labs(title = "Ct Values Distribution", x = NULL, y = "Ct Value") +
+     theme_modern() + theme(legend.position = "none")
+ }
+
+ plot_expr_boxplot <- function(expr_data, reps, metadata = NULL) {
+   n_genes <- ncol(expr_data) / reps
+
+   plot_data <- data.frame()
+   for (g in 1:n_genes) {
+     start_col <- (g - 1) * reps + 1
+     end_col <- g * reps
+
+     for (row in 1:nrow(expr_data)) {
+       values <- as.numeric(expr_data[row, start_col:end_col])
+
+       label <- if (!is.null(metadata) && metadata$Condition[row] != "") {
+         metadata$Condition[row]
+       } else {
+         paste0("S", row)
+       }
+
+       plot_data <- rbind(plot_data, data.frame(
+         Gene = paste0("Gene ", g), Sample = label, Expression = values))
+     }
+   }
+
+   plot_data <- plot_data[!is.na(plot_data$Expression), ]
+
+   ggplot(plot_data, aes(x = Gene, y = Expression, fill = Gene)) +
+     geom_boxplot(alpha = 0.8, outlier.shape = NA, color = "#475569") +
+     geom_jitter(width = 0.2, alpha = 0.6, size = 1.5, color = "#1e293b") +
+     scale_fill_manual(values = modern_colors) +
+     labs(title = "Expression Values", x = NULL, y = "Expression (2^ΔCt)") +
+     theme_modern() + theme(legend.position = "none")
+ }
+
+ plot_rel_heatmap <- function(rel_data, reps, metadata = NULL) {
+   n_genes <- ncol(rel_data) / reps
+
+   mean_rel <- data.frame()
+   for (g in 1:n_genes) {
+     start_col <- (g - 1) * reps + 1
+     end_col <- g * reps
+
+     for (row in 1:nrow(rel_data)) {
+       values <- as.numeric(rel_data[row, start_col:end_col])
+       mean_val <- mean(values, na.rm = TRUE)
+
+       label <- if (!is.null(metadata)) {
+         parts <- c()
+         if (metadata$Condition[row] != "") parts <- c(parts, metadata$Condition[row])
+         if (metadata$Cell_Line[row] != "") parts <- c(parts, metadata$Cell_Line[row])
+         if (length(parts) > 0) paste(parts, collapse = " - ") else paste0("Sample ", row)
+       } else {
+         paste0("Sample ", row)
+       }
+
+       if (!is.na(mean_val)) {
+         mean_rel <- rbind(mean_rel, data.frame(
+           Gene = paste0("Gene ", g), Sample = label, Relative_Expression = mean_val))
+       }
+     }
+   }
+
+   # Preserve order
+   mean_rel$Sample <- factor(mean_rel$Sample, levels = unique(mean_rel$Sample))
+
+   ggplot(mean_rel, aes(x = Gene, y = Sample, fill = Relative_Expression)) +
+     geom_tile(color = "white", size = 0.5) +
+     geom_text(aes(label = round(Relative_Expression, 2)), size = 3, color = "#1e293b") +
+     scale_fill_gradient2(low = "#667eea", mid = "white", high = "#f5576c",
+                         midpoint = 1, name = "Rel. Expr.") +
+     labs(title = "Relative Expression Heatmap", x = NULL, y = NULL) +
+     theme_modern() + theme(axis.text.x = element_text(angle = 0, hjust = 0.5), panel.grid = element_blank())
+ }
+
+ plot_cv_plot <- function(cv_data, reps) {
+   n_genes <- ncol(cv_data)
+
+   plot_data <- data.frame()
+   for (g in 1:n_genes) {
+     plot_data <- rbind(plot_data, data.frame(
+       Gene = paste0("Gene ", g), CV_percent = cv_data[, g]))
+   }
+
+   plot_data <- plot_data[!is.na(plot_data$CV_percent), ]
+
+   ggplot(plot_data, aes(x = Gene, y = CV_percent, fill = Gene)) +
+     geom_boxplot(alpha = 0.8, outlier.shape = NA, color = "#475569") +
+     geom_jitter(width = 0.2, alpha = 0.6, size = 1.5, color = "#1e293b") +
+     geom_hline(yintercept = 20, linetype = "dashed", color = "#f5576c", size = 1) +
+     scale_fill_manual(values = modern_colors) +
+     labs(title = "Coefficient of Variation", x = NULL, y = "CV (%)") +
+     theme_modern() + theme(legend.position = "none")
+ }
 }
 
 shinyApp(ui, server)
